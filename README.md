@@ -67,18 +67,3 @@ To develop a robust and secure platform that streamlines the entire quiz lifecyc
 ✅ Mobile-responsive and intuitive UI  
 
 ---
-
-## 🛠️ Tech Stack
-
-| Category | Technologies Used |
-|-----------|-------------------|
-| **Frontend** | HTML, CSS, JavaScript (React optional) |
-| **Backend** | Node.js / Express.js *(or any backend you use)* |
-| **Database** | MongoDB / MySQL *(as per implementation)* |
-| **Hosting (Optional)** | GitHub Pages / Vercel / Render |
-| **Version Control** | Git & GitHub |
-
----
-
-## 📁 Folder Structure
-
