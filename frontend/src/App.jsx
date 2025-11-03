@@ -4,9 +4,11 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import StudentLogin from './pages/StudentLogin';
 import TeacherLogin from './pages/TeacherLogin';
+import AdminLogin from './pages/AdminLogin';
 import Signup from './pages/Signup';
 import TeacherSignup from './pages/TeacherSignup';
 import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import QuizPage from './pages/QuizPage';
 import ResultPage from './pages/ResultPage';
 import CreateQuiz from './pages/CreateQuiz';
@@ -61,9 +63,11 @@ function App() {
           <Route path="/login" element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
           <Route path="/student-login" element={!user ? <StudentLogin onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
           <Route path="/teacher-login" element={!user ? <TeacherLogin onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
+          <Route path="/admin/login" element={!user ? <AdminLogin onLogin={handleLogin} /> : <Navigate to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'} />} />
           <Route path="/signup" element={!user ? <Signup onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
           <Route path="/teacher-signup" element={!user ? <TeacherSignup onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
-          <Route path="/dashboard" element={user ? <Dashboard user={user} /> : <Navigate to="/login" />} />
+          <Route path="/dashboard" element={user && user.role !== 'admin' ? <Dashboard user={user} /> : user?.role === 'admin' ? <Navigate to="/admin/dashboard" /> : <Navigate to="/login" />} />
+          <Route path="/admin/dashboard" element={user?.role === 'admin' ? <AdminDashboard user={user} /> : <Navigate to="/admin/login" />} />
           <Route path="/question-bank" element={user?.role === 'teacher' ? <QuestionBank user={user} /> : <Navigate to="/dashboard" />} />
           <Route path="/create-quiz" element={user?.role === 'teacher' ? <CreateQuiz user={user} /> : <Navigate to="/dashboard" />} />
           <Route path="/edit-quiz/:quizId" element={user?.role === 'teacher' ? <EditQuiz user={user} /> : <Navigate to="/dashboard" />} />

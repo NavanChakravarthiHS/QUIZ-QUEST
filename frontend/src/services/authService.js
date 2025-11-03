@@ -55,4 +55,13 @@ export const questionBankService = {
   deleteQuestion: (id) => api.delete(`/api/question-bank/${id}`)
 };
 
+// Admin endpoints
+export const adminService = {
+  getAllTeachers: () => api.get('/api/admin/teachers'),
+  createTeacher: (teacherData) => api.post('/api/admin/create-teacher', teacherData),
+  bulkCreateTeachers: (teachers) => api.post('/api/admin/bulk-create-teachers', { teachers }),
+  updateTeacher: (id, teacherData) => api.put(`/api/admin/teacher/${id}`, teacherData),
+  deleteTeacher: (id) => api.delete(`/api/admin/teacher/${id}`)
+};
+
 export default api;

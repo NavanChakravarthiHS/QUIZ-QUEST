@@ -16,6 +16,7 @@ app.use(express.json());
 const authRoutes = require('./routes/auth');
 const quizRoutes = require('./routes/quiz');
 const questionBankRoutes = require('./routes/questionBank');
+const adminRoutes = require('./routes/admin');
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quiz-platform', {
@@ -29,6 +30,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quiz-plat
 app.use('/api/auth', authRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/question-bank', questionBankRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
