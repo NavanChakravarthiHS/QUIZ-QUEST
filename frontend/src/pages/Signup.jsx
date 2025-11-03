@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 
 function Signup({ onLogin }) {
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [branch, setBranch] = useState('');
   const [usn, setUsn] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Branch options
@@ -77,8 +79,15 @@ function Signup({ onLogin }) {
 
     try {
       // Removed role parameter as it's now handled on the backend
-      const response = await authService.register({ name, email, password, branch, usn });
-      onLogin(response.data.user, response.data.token);
+      await authService.register({ name, email, password, branch, usn });
+      
+      // Show success message and redirect to login
+      setSuccess('Registration successful! Redirecting to login...');
+      
+      // Redirect to student login after 2 seconds
+      setTimeout(() => {
+        navigate('/student-login');
+      }, 2000);
     } catch (err) {
       console.error('Registration error:', err);
       if (err.response) {
@@ -120,6 +129,21 @@ function Signup({ onLogin }) {
               </div>
               <div className="ml-3">
                 <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-green-700">{success}</p>
               </div>
             </div>
           </div>
