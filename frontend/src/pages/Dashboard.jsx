@@ -19,8 +19,12 @@ function Dashboard({ user }) {
   const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
-    fetchQuizzes();
-  }, []);
+    if (user.role === 'teacher') {
+      fetchQuizzes();
+    } else {
+      fetchMyAttempts();
+    }
+  }, [user.role]);
 
   const fetchQuizzes = async () => {
     try {
@@ -31,6 +35,19 @@ function Dashboard({ user }) {
       console.error('Failed to load quizzes:', err);
       console.error('Error response:', err.response);
       setError('Failed to load quizzes: ' + (err.response?.data?.message || err.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMyAttempts = async () => {
+    try {
+      const response = await quizService.getMyAttempts();
+      setQuizzes(response.data);
+      setError('');
+    } catch (err) {
+      console.error('Failed to load attempts:', err);
+      setError('Failed to load quiz history: ' + (err.response?.data?.message || err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -91,10 +108,10 @@ function Dashboard({ user }) {
         <div className="mb-8">
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              {user.role === 'teacher' ? 'My Quizzes' : 'Available Quizzes'}
+              {user.role === 'teacher' ? 'My Quizzes' : 'My Quiz History'}
             </h1>
             <p className="text-gray-600">
-              {user.role === 'teacher' ? 'Manage your quizzes or create new ones' : 'Select a quiz to start'}
+              {user.role === 'teacher' ? 'Manage your quizzes or create new ones' : 'View your past quiz attempts and results'}
             </p>
           </div>
         </div>

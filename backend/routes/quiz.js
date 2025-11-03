@@ -451,6 +451,49 @@ router.get('/all', auth, async (req, res) => {
   }
 });
 
+// Get student's past quiz attempts with results
+router.get('/my-attempts', auth, async (req, res) => {
+  try {
+    // Only students can access this endpoint
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ message: 'Only students can access this endpoint' });
+    }
+
+    const attempts = await Attempt.find({ 
+      userId: req.user._id,
+      status: 'completed' 
+    })
+      .populate('quizId', 'title description timingMode totalDuration scheduledDate scheduledTime')
+      .sort({ submittedAt: -1 });
+
+    // Format the response
+    const formattedAttempts = attempts.map(attempt => ({
+      attemptId: attempt._id,
+      quiz: {
+        _id: attempt.quizId._id,
+        title: attempt.quizId.title,
+        description: attempt.quizId.description,
+        timingMode: attempt.quizId.timingMode,
+        totalDuration: attempt.quizId.totalDuration,
+        scheduledDate: attempt.quizId.scheduledDate,
+        scheduledTime: attempt.quizId.scheduledTime
+      },
+      score: attempt.score,
+      totalScore: attempt.totalScore,
+      percentage: attempt.totalScore > 0 ? Math.round((attempt.score / attempt.totalScore) * 100) : 0,
+      submittedAt: attempt.submittedAt,
+      timeSpent: attempt.timeSpent,
+      tabSwitches: attempt.tabSwitches,
+      status: attempt.status
+    }));
+
+    res.json(formattedAttempts);
+  } catch (error) {
+    console.error('Error fetching student attempts:', error);
+    res.status(500).json({ message: 'Error fetching attempts', error: error.message });
+  }
+});
+
 // Get Single Quiz by ID (with full details for editing)
 router.get('/:id', auth, async (req, res) => {
   try {

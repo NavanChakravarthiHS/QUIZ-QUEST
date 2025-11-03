@@ -1,40 +1,93 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import QrScanner from 'react-qr-scanner';
+import { Html5Qrcode } from 'html5-qrcode';
 
 function QRScanner({ onClose }) {
   const navigate = useNavigate();
   const [error, setError] = useState('');
-  const [scanning, setScanning] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const scannerRef = useRef(null);
+  const html5QrCodeRef = useRef(null);
 
-  const handleScan = (data) => {
-    if (data) {
+  useEffect(() => {
+    startScanner();
+    return () => {
+      stopScanner();
+    };
+  }, []);
+
+  const startScanner = async () => {
+    try {
+      const html5QrCode = new Html5Qrcode("qr-reader");
+      html5QrCodeRef.current = html5QrCode;
+
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
+        onScanSuccess,
+        onScanError
+      );
+      setScanning(true);
+    } catch (err) {
+      console.error('Error starting scanner:', err);
+      setError('Camera access denied or not available. Please allow camera access.');
+    }
+  };
+
+  const stopScanner = async () => {
+    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
       try {
-        // Extract quiz ID from scanned URL
-        const url = new URL(data.text);
-        const path = url.pathname;
-        
-        // Check if it's a student-access URL
-        if (path.includes('/student-access/')) {
-          const quizId = path.split('/student-access/')[1];
-          navigate(`/student-access/${quizId}`);
-          onClose();
-        } else if (path.includes('/quiz/')) {
-          const quizId = path.split('/quiz/')[1];
-          navigate(`/quiz/${quizId}`);
-          onClose();
-        } else {
-          setError('Invalid quiz QR code');
-        }
+        await html5QrCodeRef.current.stop();
+        html5QrCodeRef.current.clear();
       } catch (err) {
-        setError('Invalid QR code format');
+        console.error('Error stopping scanner:', err);
       }
     }
   };
 
-  const handleError = (err) => {
-    console.error('QR Scanner Error:', err);
-    setError('Camera access denied or not available');
+  const onScanSuccess = (decodedText, decodedResult) => {
+    try {
+      stopScanner();
+      
+      // Extract quiz ID from scanned URL
+      const url = new URL(decodedText);
+      const path = url.pathname;
+      
+      // Check if it's a student-access URL
+      if (path.includes('/student-access/')) {
+        const quizId = path.split('/student-access/')[1];
+        navigate(`/student-access/${quizId}`);
+        onClose();
+      } else if (path.includes('/quiz/')) {
+        const quizId = path.split('/quiz/')[1];
+        navigate(`/quiz/${quizId}`);
+        onClose();
+      } else {
+        setError('Invalid quiz QR code');
+        setTimeout(() => {
+          setError('');
+          startScanner();
+        }, 2000);
+      }
+    } catch (err) {
+      setError('Invalid QR code format');
+      setTimeout(() => {
+        setError('');
+        startScanner();
+      }, 2000);
+    }
+  };
+
+  const onScanError = (errorMessage) => {
+    // Ignore scanning errors (happens when no QR code is in view)
+  };
+
+  const handleClose = async () => {
+    await stopScanner();
+    onClose();
   };
 
   return (
@@ -63,30 +116,17 @@ function QRScanner({ onClose }) {
             Position the QR code within the camera frame to scan
           </p>
           
-          {scanning && (
-            <div className="relative">
-              <QrScanner
-                delay={300}
-                onError={handleError}
-                onScan={handleScan}
-                style={{ width: '100%' }}
-                constraints={{
-                  video: { facingMode: 'environment' }
-                }}
-              />
-              <div className="absolute inset-0 border-4 border-blue-500 pointer-events-none rounded-lg">
-                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-600"></div>
-                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-600"></div>
-                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-600"></div>
-                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-600"></div>
-              </div>
-            </div>
-          )}
+          <div 
+            id="qr-reader" 
+            ref={scannerRef}
+            className="w-full rounded-lg overflow-hidden"
+            style={{ minHeight: '300px' }}
+          ></div>
         </div>
 
         <div className="flex gap-3">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition font-medium"
           >
             Cancel

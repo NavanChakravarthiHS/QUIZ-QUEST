@@ -30,6 +30,7 @@ export const authService = {
 export const quizService = {
   createQuiz: (quizData) => api.post('/api/quiz/create', quizData),
   getAllQuizzes: () => api.get('/api/quiz/all'),
+  getMyAttempts: () => api.get('/api/quiz/my-attempts'),
   getQuiz: (id) => api.get(`/api/quiz/${id}`),
   getQuizById: (id) => api.get(`/api/quiz/${id}`), // Alias for getQuiz
   updateQuiz: (id, quizData) => api.put(`/api/quiz/${id}`, quizData),
