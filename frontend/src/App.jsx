@@ -6,7 +6,6 @@ import StudentLogin from './pages/StudentLogin';
 import TeacherLogin from './pages/TeacherLogin';
 import AdminLogin from './pages/AdminLogin';
 import Signup from './pages/Signup';
-import TeacherSignup from './pages/TeacherSignup';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import QuizPage from './pages/QuizPage';
@@ -65,7 +64,6 @@ function App() {
           <Route path="/teacher-login" element={!user ? <TeacherLogin onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
           <Route path="/admin/login" element={!user ? <AdminLogin onLogin={handleLogin} /> : <Navigate to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'} />} />
           <Route path="/signup" element={!user ? <Signup onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
-          <Route path="/teacher-signup" element={!user ? <TeacherSignup onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
           <Route path="/dashboard" element={user && user.role !== 'admin' ? <Dashboard user={user} /> : user?.role === 'admin' ? <Navigate to="/admin/dashboard" /> : <Navigate to="/login" />} />
           <Route path="/admin/dashboard" element={user?.role === 'admin' ? <AdminDashboard user={user} /> : <Navigate to="/admin/login" />} />
           <Route path="/question-bank" element={user?.role === 'teacher' ? <QuestionBank user={user} /> : <Navigate to="/dashboard" />} />
