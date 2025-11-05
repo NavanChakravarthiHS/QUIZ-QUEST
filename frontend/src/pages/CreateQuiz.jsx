@@ -13,7 +13,7 @@ function CreateQuiz({ user }) {
   const [scheduledTime, setScheduledTime] = useState('');
   const [questions, setQuestions] = useState([
     {
-      id: Date.now(),
+      id: `question-${Date.now()}-${Math.random()}`,
       question: '',
       type: 'single',
       options: [
@@ -80,7 +80,7 @@ function CreateQuiz({ user }) {
       
       // Convert bank questions to quiz format
       const formattedQuestions = bankQuestions.map(q => ({
-        id: q._id || Date.now() + Math.random(),
+        id: q._id || `question-${Date.now()}-${Math.random()}`,
         question: q.question,
         type: q.type,
         options: q.options,
@@ -99,7 +99,7 @@ function CreateQuiz({ user }) {
 
   const addQuestion = () => {
     const newQuestion = {
-      id: Date.now(),
+      id: `question-${Date.now()}-${Math.random()}`,
       question: '',
       type: 'single',
       options: [
@@ -276,6 +276,10 @@ function CreateQuiz({ user }) {
       const secs = value % 60;
       return `${mins} min ${secs}s`;
     }
+  };
+
+  const getTotalMarks = () => {
+    return questions.reduce((total, q) => total + q.points, 0);
   };
 
   const getTotalPoints = () => {
@@ -498,16 +502,9 @@ function CreateQuiz({ user }) {
                 {questions.length} questions
               </span>
               <span className="ml-2 bg-gray-100 text-gray-800 text-sm font-medium px-2 py-1 rounded">
-                {getTotalPoints()} total points
+                {getTotalMarks()} total marks
               </span>
             </h2>
-            <button
-              type="button"
-              onClick={addQuestion}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium"
-            >
-              Add Question
-            </button>
           </div>
 
           <div className="space-y-6">
@@ -557,7 +554,7 @@ function CreateQuiz({ user }) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Points
+                      Marks
                     </label>
                     <input
                       type="number"
@@ -665,6 +662,20 @@ function CreateQuiz({ user }) {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Fixed Add Question Button */}
+        <div className="fixed-button-container">
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center"
+          >
+            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Question
+          </button>
         </div>
 
         {/* Form Actions */}

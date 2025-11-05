@@ -85,7 +85,7 @@ router.post('/create', auth, async (req, res) => {
       return res.status(403).json({ message: 'Only teachers can create questions' });
     }
 
-    const { subject, question, type, options, points, difficulty, imageUrl } = req.body;
+    const { subject, question, type, options, points, imageUrl } = req.body;
 
     // Validation
     if (!subject || !subject.trim()) {
@@ -122,7 +122,7 @@ router.post('/create', auth, async (req, res) => {
       type,
       options,
       points: points || 1,
-      difficulty: difficulty || 'medium',
+      // Removed difficulty field as per requirement
       imageUrl: imageUrl || '',
       createdBy: req.user._id
     });
@@ -187,14 +187,14 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'You can only update your own questions' });
     }
 
-    const { subject, question: questionText, type, options, points, difficulty, imageUrl } = req.body;
+    const { subject, question: questionText, type, options, points, imageUrl } = req.body;
 
     if (subject) question.subject = subject.trim();
     if (questionText) question.question = questionText.trim();
     if (type) question.type = type;
     if (options) question.options = options;
     if (points) question.points = points;
-    if (difficulty) question.difficulty = difficulty;
+    // Removed difficulty field as per requirement
     if (imageUrl !== undefined) question.imageUrl = imageUrl;
 
     await question.save();

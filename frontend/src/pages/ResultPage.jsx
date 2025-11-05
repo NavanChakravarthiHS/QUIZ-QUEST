@@ -125,7 +125,7 @@ function ResultPage({ user }) {
               </div>
               
               <p className="mt-3 text-gray-600">
-                Points: {answer.pointsEarned} / {answer.totalPoints}
+                Marks: {answer.pointsEarned} / {answer.totalPoints}
               </p>
             </div>
           ))}

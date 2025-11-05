@@ -15,6 +15,8 @@ function QuizPage({ user }) {
   const [error, setError] = useState('');
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [startTime, setStartTime] = useState(null);
+  const [questionStartTime, setQuestionStartTime] = useState(null);
+  const [questionTimes, setQuestionTimes] = useState({}); // Track time spent on each question
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -35,11 +37,38 @@ function QuizPage({ user }) {
 
   useEffect(() => {
     if (quiz && startTime) {
+      // Handle total time mode
+      if (quiz.timingMode === 'total') {
+        const timer = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              handleSubmit(true); // Auto-submit when time runs out
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        return () => clearInterval(timer);
+      }
+    }
+  }, [quiz, startTime]);
+
+  useEffect(() => {
+    // Handle per-question time mode
+    if (quiz && quiz.timingMode === 'per-question' && currentQuestionIndex < quiz.questions.length) {
+      const questionTimeLimit = quiz.questions[currentQuestionIndex].timeLimit;
+      setTimeLeft(questionTimeLimit);
+      setQuestionStartTime(Date.now());
+      
       const timer = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timer);
-            handleSubmit(true); // Auto-submit when time runs out
+            // Mark question as unanswered if no answer was selected
+            // Move to next question automatically
+            handleNextQuestion(true); // true indicates auto-move due to time expiration
             return 0;
           }
           return prev - 1;
@@ -48,7 +77,7 @@ function QuizPage({ user }) {
 
       return () => clearInterval(timer);
     }
-  }, [quiz, startTime]);
+  }, [quiz, currentQuestionIndex]);
 
   const fetchQuiz = async () => {
     try {
@@ -70,6 +99,7 @@ function QuizPage({ user }) {
           setTimeLeft(response.quiz.questions[0].timeLimit);
         }
         setStartTime(Date.now());
+        setQuestionStartTime(Date.now());
       } else if (user) {
         // Authenticated user
         const response = await quizService.joinQuiz(quizId);
@@ -83,6 +113,7 @@ function QuizPage({ user }) {
           setTimeLeft(response.quiz.questions[0].timeLimit);
         }
         setStartTime(Date.now());
+        setQuestionStartTime(Date.now());
       } else {
         // Redirect to student access page if not authenticated and no attempt ID
         navigate(`/student-access/${quizId}`);
@@ -109,34 +140,73 @@ function QuizPage({ user }) {
     });
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = (isAutoMove = false) => {
+    // Record time spent on current question
+    if (questionStartTime) {
+      const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+      setQuestionTimes(prev => ({
+        ...prev,
+        [currentQuestionIndex]: timeSpent
+      }));
+    }
+    
     if (currentQuestionIndex < quiz.questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       
       // For per-question timing mode, reset timer
       if (quiz.timingMode === 'per-question') {
         setTimeLeft(quiz.questions[currentQuestionIndex + 1].timeLimit);
+        setQuestionStartTime(Date.now());
+      }
+    } else {
+      // If this is the last question and we're auto-moving due to time expiration, submit the quiz
+      if (isAutoMove) {
+        handleSubmit(true);
       }
     }
   };
 
   const handlePreviousQuestion = () => {
+    // Record time spent on current question
+    if (questionStartTime) {
+      const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+      setQuestionTimes(prev => ({
+        ...prev,
+        [currentQuestionIndex]: timeSpent
+      }));
+    }
+    
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(prev => prev - 1);
       
       // For per-question timing mode, reset timer
       if (quiz.timingMode === 'per-question') {
         setTimeLeft(quiz.questions[currentQuestionIndex - 1].timeLimit);
+        setQuestionStartTime(Date.now());
       }
     }
   };
 
   const handleSubmit = async (isAutoSubmit = false) => {
     try {
-      const formattedAnswers = Object.entries(answers).map(([questionId, selectedOptions]) => ({
-        questionId,
-        selectedOptions
-      }));
+      // Record time spent on the last question
+      if (questionStartTime) {
+        const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+        setQuestionTimes(prev => ({
+          ...prev,
+          [currentQuestionIndex]: timeSpent
+        }));
+      }
+      
+      const formattedAnswers = Object.entries(answers).map(([questionId, selectedOptions]) => {
+        // Find the question index by questionId
+        const questionIndex = quiz.questions.findIndex(q => q._id === questionId);
+        return {
+          questionId,
+          selectedOptions,
+          timeSpent: questionTimes[questionIndex] || 0
+        };
+      });
 
       const response = await quizService.submitQuiz({
         attemptId,
@@ -214,7 +284,9 @@ function QuizPage({ user }) {
             </div>
             <div className="mt-4 md:mt-0 flex items-center space-x-6">
               <div className="bg-blue-50 rounded-lg px-4 py-2">
-                <div className="text-sm text-blue-800 font-medium">Time Left</div>
+                <div className="text-sm text-blue-800 font-medium">
+                  {quiz.timingMode === 'total' ? 'Total Time' : 'Question Time'}
+                </div>
                 <div className={`text-xl font-bold ${timeLeft < 60 ? 'text-red-600' : 'text-blue-600'}`}>
                   {formatTime(timeLeft)}
                 </div>
@@ -248,9 +320,15 @@ function QuizPage({ user }) {
             <div className="ml-4">
               <h2 className="text-xl font-semibold text-gray-900">{currentQuestion.question}</h2>
               <div className="mt-2 flex items-center text-sm text-gray-500">
-                <span className="bg-gray-100 px-2 py-1 rounded">{currentQuestion.points} points</span>
+                <span className="bg-gray-100 px-2 py-1 rounded">{currentQuestion.points} Marks</span>
                 <span className="mx-2">•</span>
                 <span>{currentQuestion.type === 'single' ? 'Single Choice' : 'Multiple Choice'}</span>
+                {quiz.timingMode === 'per-question' && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span>Time: {formatTime(currentQuestion.timeLimit)}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -318,7 +396,7 @@ function QuizPage({ user }) {
           <div className="flex gap-4">
             {currentQuestionIndex < quiz.questions.length - 1 ? (
               <button
-                onClick={handleNextQuestion}
+                onClick={() => handleNextQuestion(false)}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
               >
                 Next

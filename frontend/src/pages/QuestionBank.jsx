@@ -24,7 +24,7 @@ function QuestionBank({ user }) {
       { text: '', isCorrect: false }
     ],
     points: 1,
-    difficulty: 'medium',
+    // Removed difficulty field as per requirement
     imageUrl: ''
   });
 
@@ -104,7 +104,7 @@ function QuestionBank({ user }) {
         { text: '', isCorrect: false }
       ],
       points: 1,
-      difficulty: 'medium',
+      // Removed difficulty field as per requirement
       imageUrl: ''
     });
     setEditingQuestion(null);
@@ -169,7 +169,7 @@ function QuestionBank({ user }) {
       type: question.type,
       options: question.options,
       points: question.points,
-      difficulty: question.difficulty,
+      // Removed difficulty field as per requirement
       imageUrl: question.imageUrl || ''
     });
     setEditingQuestion(question);
@@ -298,20 +298,7 @@ function QuestionBank({ user }) {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Difficulty
-                  </label>
-                  <select
-                    value={formData.difficulty}
-                    onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                  </select>
-                </div>
+                {/* Removed difficulty field as per requirement */}
               </div>
 
               <div>
@@ -420,14 +407,12 @@ function QuestionBank({ user }) {
                       <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
                         {q.subject}
                       </span>
-                      <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded">
-                        {q.difficulty}
-                      </span>
+                      {/* Removed difficulty display as per requirement */}
                       <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">
                         {q.type === 'single' ? 'Single Choice' : 'Multiple Choice'}
                       </span>
                       <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
-                        {q.points} {q.points === 1 ? 'point' : 'points'}
+                        {q.points} {q.points === 1 ? 'mark' : 'marks'}
                       </span>
                     </div>
                     <p className="text-gray-800 font-medium mb-2">{q.question}</p>

@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ensure proper scrolling behavior with fixed elements */
+html {
+  scroll-padding-top: 2rem;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -43,4 +48,12 @@ code {
 
 .animate-fade-in-up {
   animation: fade-in-up 1s ease-out;
+}
+
+/* Fixed button positioning */
+.fixed-button-container {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 50;
 }

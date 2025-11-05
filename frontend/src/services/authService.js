@@ -18,7 +18,7 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-});
+});     
 
 // Auth endpoints
 export const authService = {

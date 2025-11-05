@@ -31,11 +31,7 @@ const questionBankSchema = new mongoose.Schema({
     default: 1,
     min: 1
   },
-  difficulty: {
-    type: String,
-    enum: ['easy', 'medium', 'hard'],
-    default: 'medium'
-  },
+  // Removed difficulty field as per requirement
   imageUrl: {
     type: String,
     default: ''

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { quizService } from '../services/authService';
+import { quizService, questionBankService } from '../services/authService';
 
 function EditQuiz({ user }) {
   const navigate = useNavigate();
@@ -17,9 +17,16 @@ function EditQuiz({ user }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Question Bank integration
+  const [useQuestionBank, setUseQuestionBank] = useState(false);
+  const [subjects, setSubjects] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [questionCount, setQuestionCount] = useState(10);
 
   useEffect(() => {
     loadQuiz();
+    fetchSubjects(); // Fetch subjects for question bank
   }, [quizId]);
 
   const loadQuiz = async () => {
@@ -27,7 +34,8 @@ function EditQuiz({ user }) {
       setLoading(true);
       setError('');
       
-      const data = await quizService.getQuizById(quizId);
+      const response = await quizService.getQuizById(quizId);
+      const data = response.data;
       
       if (!data) {
         throw new Error('No quiz data received');
@@ -41,6 +49,7 @@ function EditQuiz({ user }) {
       if (data.scheduledDate) {
         // Format date as YYYY-MM-DD for input field
         const dateObj = new Date(data.scheduledDate);
+        // Handle potential timezone issues by using UTC date
         const formattedDate = dateObj.toISOString().split('T')[0];
         setScheduledDate(formattedDate);
       } else {
@@ -67,10 +76,10 @@ function EditQuiz({ user }) {
         setTotalDuration(data.totalDuration);
       }
       
-      // Convert questions to editable format - use _id if available, else index
+      // Convert questions to editable format - use _id if available, else generate unique ID
       if (data.questions && data.questions.length > 0) {
         const editableQuestions = data.questions.map((q, index) => ({
-          id: q._id ? q._id.toString() : Date.now() + index,
+          id: q._id ? q._id.toString() : `question-${Date.now()}-${index}-${Math.random()}`,
           question: q.question || '',
           type: q.type || 'single',
           options: Array.isArray(q.options) && q.options.length > 0 
@@ -80,7 +89,7 @@ function EditQuiz({ user }) {
               }))
             : [{ text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }],
           points: q.points || 1,
-          timeLimit: q.timeLimit || 60,
+          timeLimit: q.timeLimit || null,
           imageUrl: q.imageUrl || '' // Add image URL field
         }));
         setQuestions(editableQuestions);
@@ -88,7 +97,7 @@ function EditQuiz({ user }) {
         // Add a default question if none exist
         setQuestions([
           {
-            id: Date.now(),
+            id: `question-${Date.now()}-${Math.random()}`,
             question: '',
             type: 'single',
             options: [
@@ -104,16 +113,64 @@ function EditQuiz({ user }) {
     } catch (err) {
       console.error('Error loading quiz:', err);
       console.error('Error details:', err.response?.data);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to load quiz. Please check your connection.';
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to load quiz. Please check your connection and ensure you have permission to edit this quiz.';
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchSubjects = async () => {
+    try {
+      const response = await questionBankService.getAllSubjects();
+      setSubjects(response.data);
+    } catch (err) {
+      console.error('Error fetching subjects:', err);
+    }
+  };
+  
+  const loadQuestionsFromBank = async () => {
+    if (!selectedSubject) {
+      setError('Please select a subject');
+      return;
+    }
+    
+    if (questionCount < 1) {
+      setError('Please select at least 1 question');
+      return;
+    }
+    
+    try {
+      const response = await questionBankService.getRandomQuestions(selectedSubject, questionCount);
+      const bankQuestions = response.data;
+      
+      if (bankQuestions.length === 0) {
+        setError(`No questions found for subject: ${selectedSubject}`);
+        return;
+      }
+      
+      // Convert bank questions to quiz format
+      const formattedQuestions = bankQuestions.map(q => ({
+        id: q._id || `question-${Date.now()}-${Math.random()}`,
+        question: q.question,
+        type: q.type,
+        options: q.options,
+        points: q.points,
+        imageUrl: q.imageUrl || ''
+      }));
+      
+      setQuestions(formattedQuestions);
+      setSuccess(`Loaded ${formattedQuestions.length} questions from ${selectedSubject}`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Error loading questions from bank:', err);
+      setError('Failed to load questions from bank');
+    }
+  };
+
   const addQuestion = () => {
     const newQuestion = {
-      id: Date.now(),
+      id: `question-${Date.now()}-${Math.random()}`,
       question: '',
       type: 'single',
       options: [
@@ -177,6 +234,8 @@ function EditQuiz({ user }) {
       } : q
     ));
   };
+
+
 
   // Handle image upload (simulated - in a real app, you would upload to a server)
   const handleImageUpload = (questionId, file) => {
@@ -302,7 +361,7 @@ function EditQuiz({ user }) {
     }
   };
 
-  const getTotalPoints = () => {
+  const getTotalMarks = () => {
     return questions.reduce((total, q) => total + q.points, 0);
   };
 
@@ -447,6 +506,80 @@ function EditQuiz({ user }) {
           </div>
         </div>
 
+        {/* Question Bank Integration */}
+        <div className="mb-8 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Use Question Bank
+            </h2>
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useQuestionBank}
+                onChange={(e) => setUseQuestionBank(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </div>
+          
+          {useQuestionBank && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 mb-3">
+                Load questions randomly from your question bank by subject
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Subject *
+                  </label>
+                  <select
+                    value={selectedSubject}
+                    onChange={(e) => setSelectedSubject(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">-- Choose Subject --</option>
+                    {subjects.map((subject) => (
+                      <option key={subject} value={subject}>
+                        {subject}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Number of Questions
+                  </label>
+                  <input
+                    type="number"
+                    value={questionCount}
+                    onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+                    min="1"
+                    max="50"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+                
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={loadQuestionsFromBank}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition font-medium"
+                  >
+                    Load Questions
+                  </button>
+                </div>
+              </div>
+              
+              <p className="text-xs text-gray-500 italic">
+                Note: Loading questions will replace any manually added questions below
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Questions Section */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
@@ -456,16 +589,9 @@ function EditQuiz({ user }) {
                 {questions.length} questions
               </span>
               <span className="ml-2 bg-gray-100 text-gray-800 text-sm font-medium px-2 py-1 rounded">
-                {getTotalPoints()} total points
+                {getTotalMarks()} total marks
               </span>
             </h2>
-            <button
-              type="button"
-              onClick={addQuestion}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium"
-            >
-              Add Question
-            </button>
           </div>
 
           <div className="space-y-6">
@@ -515,7 +641,7 @@ function EditQuiz({ user }) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Points
+                      Marks
                     </label>
                     <input
                       type="number"
@@ -625,6 +751,20 @@ function EditQuiz({ user }) {
           </div>
         </div>
 
+        {/* Fixed Add Question Button */}
+        <div className="fixed-button-container">
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center"
+          >
+            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Question
+          </button>
+        </div>
+
         {/* Form Actions */}
         <div className="flex justify-between items-center pt-4 border-t border-gray-200">
           <button
@@ -636,10 +776,10 @@ function EditQuiz({ user }) {
           </button>
           <button
             type="submit"
-            disabled={saving}
+            disabled={loading}
             className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded disabled:opacity-50"
           >
-            {saving ? (
+            {loading ? (
               'Updating Quiz...'
             ) : (
               'Update Quiz'
