@@ -166,7 +166,13 @@ function Signup({ onLogin }) {
                   type="text"
                   required
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Only allow alphabetic characters and spaces
+                    if (value === '' || /^[A-Za-z\s]*$/.test(value)) {
+                      setName(value);
+                    }
+                  }}
                   className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 py-3 sm:text-sm border-gray-300 rounded-lg border"
                   placeholder="John Doe"
                 />

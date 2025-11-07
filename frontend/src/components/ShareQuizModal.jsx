@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 
 function ShareQuizModal({ quiz, onClose }) {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const quizUrl = `${window.location.origin}/quiz/${quiz._id}`;
+  const quizUrl = `${window.location.origin}/student-access/${quiz._id}`;
 
   useEffect(() => {
     generateQRCode();
@@ -131,7 +131,7 @@ function ShareQuizModal({ quiz, onClose }) {
             <li>Display the QR code on a projector or screen</li>
             <li>Students scan the code with their mobile devices</li>
             <li>Students enter their name and USN</li>
-            <li>Students can then attend the quiz</li>
+            <li>Students can then attempt the quiz</li>
           </ol>
         </div>
 
