@@ -9,6 +9,7 @@ function StudentAccess() {
   
   const [name, setName] = useState('');
   const [usn, setUsn] = useState('');
+  const [accessKey, setAccessKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,6 +27,12 @@ function StudentAccess() {
 
     if (!usn.trim()) {
       setError('Please enter your USN');
+      setLoading(false);
+      return;
+    }
+
+    if (!accessKey.trim()) {
+      setError('Please enter the access key');
       setLoading(false);
       return;
     }
@@ -49,7 +56,8 @@ function StudentAccess() {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const response = await axios.post(`${API_URL}/api/quiz/student-access/${quizId}`, {
         name,
-        usn
+        usn,
+        accessKey
       });
       
       // Store the attempt ID in localStorage for later use
@@ -142,6 +150,30 @@ function StudentAccess() {
             </div>
             <p className="text-sm text-gray-500 mt-1">
               Alphanumeric characters only
+            </p>
+          </div>
+
+          <div className="mb-8">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Access Key *
+            </label>
+            <div className="relative rounded-md shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <input
+                type="password"
+                value={accessKey}
+                onChange={(e) => setAccessKey(e.target.value)}
+                placeholder="Enter the access key provided by teacher"
+                className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 py-3 sm:text-sm border-gray-300 rounded-lg border"
+                required
+              />
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              Ask your teacher for the access key
             </p>
           </div>
 

@@ -195,7 +195,7 @@ router.get('/join/:quizId', auth, async (req, res) => {
 // Student access quiz (for QR code access)
 router.post('/student-access/:quizId', optionalAuth, async (req, res) => {
   try {
-    const { name, usn } = req.body;
+    const { name, usn, accessKey } = req.body;
     const { quizId } = req.params;
 
     // Validate input
@@ -205,6 +205,10 @@ router.post('/student-access/:quizId', optionalAuth, async (req, res) => {
 
     if (!usn || !usn.trim()) {
       return res.status(400).json({ message: 'USN is required' });
+    }
+
+    if (!accessKey || !accessKey.trim()) {
+      return res.status(400).json({ message: 'Access key is required' });
     }
 
     // Validate name format
@@ -220,6 +224,13 @@ router.post('/student-access/:quizId', optionalAuth, async (req, res) => {
     const quiz = await Quiz.findOne({ _id: quizId, isActive: true });
     if (!quiz) {
       return res.status(404).json({ message: 'Invalid or inactive quiz' });
+    }
+
+    // Validate access key
+    // The access key should match the quiz title (simplified validation)
+    // In production, you might want to generate and store actual keys
+    if (accessKey !== quiz.title) {
+      return res.status(401).json({ message: 'Invalid access key. Please check with your teacher.' });
     }
 
     // Check if student already has an attempt for this quiz
