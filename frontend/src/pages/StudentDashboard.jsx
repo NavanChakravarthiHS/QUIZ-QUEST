@@ -27,10 +27,6 @@ function StudentDashboard({ user }) {
     }
   };
 
-  const handleViewResult = (attemptId) => {
-    navigate(`/result/${attemptId}`);
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -186,7 +182,6 @@ function StudentDashboard({ user }) {
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-800">Percentage</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-800">Time Spent</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-800">Submitted On</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-800">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -218,14 +213,6 @@ function StudentDashboard({ user }) {
                         <span className="text-xs text-gray-500">
                           {new Date(attempt.submittedAt).toLocaleTimeString()}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <button
-                          onClick={() => handleViewResult(attempt.attemptId)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition"
-                        >
-                          View Result
-                        </button>
                       </td>
                     </tr>
                   ))}

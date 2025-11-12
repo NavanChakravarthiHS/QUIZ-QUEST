@@ -17,6 +17,7 @@ function QuizPage({ user }) {
   const [startTime, setStartTime] = useState(null);
   const [questionStartTime, setQuestionStartTime] = useState(null);
   const [questionTimes, setQuestionTimes] = useState({}); // Track time spent on each question
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -35,30 +36,28 @@ function QuizPage({ user }) {
     fetchQuiz();
   }, [quizId]);
 
+  // Timer effect for TOTAL duration mode
   useEffect(() => {
-    if (quiz && startTime) {
-      // Handle total time mode
-      if (quiz.timingMode === 'total') {
-        const timer = setInterval(() => {
-          setTimeLeft(prev => {
-            if (prev <= 1) {
-              clearInterval(timer);
-              handleSubmit(true); // Auto-submit when time runs out
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
+    if (quiz && startTime && quiz.timingMode === 'total') {
+      const timer = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            handleSubmit(true); // Auto-submit when time runs out
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
 
-        return () => clearInterval(timer);
-      }
+      return () => clearInterval(timer);
     }
   }, [quiz, startTime]);
 
+  // Timer effect for PER-QUESTION mode
   useEffect(() => {
-    // Handle per-question time mode
     if (quiz && quiz.timingMode === 'per-question' && currentQuestionIndex < quiz.questions.length) {
-      const questionTimeLimit = quiz.questions[currentQuestionIndex].timeLimit;
+      const questionTimeLimit = quiz.totalDuration; // Use totalDuration for per-question mode
       setTimeLeft(questionTimeLimit);
       setQuestionStartTime(Date.now());
       
@@ -66,8 +65,7 @@ function QuizPage({ user }) {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timer);
-            // Mark question as unanswered if no answer was selected
-            // Move to next question automatically
+            // Auto-move to next question when time expires
             handleNextQuestion(true); // true indicates auto-move due to time expiration
             return 0;
           }
@@ -89,28 +87,28 @@ function QuizPage({ user }) {
       if (storedAttemptId) {
         // This is a QR code student with an existing attempt
         const response = await quizService.getQuizForAttempt(storedAttemptId);
-        setQuiz(response.quiz);
+        setQuiz(response.data.quiz);
         setAttemptId(storedAttemptId);
         
         // Start timer based on quiz timing mode
-        if (response.quiz.timingMode === 'total') {
-          setTimeLeft(response.quiz.totalDuration);
+        if (response.data.quiz.timingMode === 'total') {
+          setTimeLeft(response.data.quiz.totalDuration);
         } else {
-          setTimeLeft(response.quiz.questions[0].timeLimit);
+          setTimeLeft(response.data.quiz.totalDuration);
         }
         setStartTime(Date.now());
         setQuestionStartTime(Date.now());
       } else if (user) {
         // Authenticated user
         const response = await quizService.joinQuiz(quizId);
-        setQuiz(response.quiz);
-        setAttemptId(response.attemptId);
+        setQuiz(response.data.quiz);
+        setAttemptId(response.data.attemptId);
         
         // Start timer based on quiz timing mode
-        if (response.quiz.timingMode === 'total') {
-          setTimeLeft(response.quiz.totalDuration);
+        if (response.data.quiz.timingMode === 'total') {
+          setTimeLeft(response.data.quiz.totalDuration);
         } else {
-          setTimeLeft(response.quiz.questions[0].timeLimit);
+          setTimeLeft(response.data.quiz.totalDuration);
         }
         setStartTime(Date.now());
         setQuestionStartTime(Date.now());
@@ -120,6 +118,7 @@ function QuizPage({ user }) {
         return;
       }
     } catch (err) {
+      console.error('Error loading quiz:', err);
       setError(err.response?.data?.message || 'Failed to load quiz');
     } finally {
       setLoading(false);
@@ -141,6 +140,8 @@ function QuizPage({ user }) {
   };
 
   const handleNextQuestion = (isAutoMove = false) => {
+    if (isSubmitting) return; // Prevent action if already submitting
+    
     // Record time spent on current question
     if (questionStartTime) {
       const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
@@ -152,12 +153,7 @@ function QuizPage({ user }) {
     
     if (currentQuestionIndex < quiz.questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
-      
-      // For per-question timing mode, reset timer
-      if (quiz.timingMode === 'per-question') {
-        setTimeLeft(quiz.questions[currentQuestionIndex + 1].timeLimit);
-        setQuestionStartTime(Date.now());
-      }
+      setQuestionStartTime(Date.now());
     } else {
       // If this is the last question and we're auto-moving due to time expiration, submit the quiz
       if (isAutoMove) {
@@ -167,6 +163,14 @@ function QuizPage({ user }) {
   };
 
   const handlePreviousQuestion = () => {
+    if (isSubmitting) return; // Prevent action if already submitting
+    
+    // In per-question mode, don't allow going back
+    if (quiz.timingMode === 'per-question') {
+      setError('Cannot navigate to previous questions in fixed-time mode');
+      return;
+    }
+
     // Record time spent on current question
     if (questionStartTime) {
       const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
@@ -178,16 +182,14 @@ function QuizPage({ user }) {
     
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(prev => prev - 1);
-      
-      // For per-question timing mode, reset timer
-      if (quiz.timingMode === 'per-question') {
-        setTimeLeft(quiz.questions[currentQuestionIndex - 1].timeLimit);
-        setQuestionStartTime(Date.now());
-      }
+      setQuestionStartTime(Date.now());
     }
   };
 
   const handleSubmit = async (isAutoSubmit = false) => {
+    if (isSubmitting) return; // Prevent double submission
+    setIsSubmitting(true);
+    
     try {
       // Record time spent on the last question
       if (questionStartTime) {
@@ -210,17 +212,21 @@ function QuizPage({ user }) {
 
       const response = await quizService.submitQuiz({
         attemptId,
-        quizId: quiz._id,
+        quizId: quiz.id || quiz._id,
         answers: formattedAnswers,
         tabSwitches: tabSwitchCount
       });
 
       // Clear the attempt ID from localStorage
       localStorage.removeItem('currentAttemptId');
+      localStorage.removeItem('guestStudent');
       
-      navigate(`/result/${response.result.attemptId}`);
+      // Navigate to result page using the attemptId we already have
+      navigate(`/result/${attemptId}`);
     } catch (err) {
+      console.error('Error submitting quiz:', err);
       setError(err.response?.data?.message || 'Failed to submit quiz');
+      setIsSubmitting(false);
     }
   };
 
@@ -241,7 +247,7 @@ function QuizPage({ user }) {
     );
   }
 
-  if (error) {
+  if (error && !quiz) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full mx-4">
@@ -281,10 +287,15 @@ function QuizPage({ user }) {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{quiz.title}</h1>
               <p className="text-gray-600 mt-1">{quiz.description}</p>
+              <div className="mt-2 inline-block">
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                  {quiz.timingMode === 'total' ? 'Free Navigation Mode' : 'Fixed Time per Question'}
+                </span>
+              </div>
             </div>
             <div className="mt-4 md:mt-0 flex items-center space-x-6">
-              <div className="bg-blue-50 rounded-lg px-4 py-2">
-                <div className="text-sm text-blue-800 font-medium">
+              <div className={`${timeLeft < 60 && quiz.timingMode === 'total' ? 'bg-red-50' : 'bg-blue-50'} rounded-lg px-4 py-2`}>
+                <div className={`text-sm font-medium ${timeLeft < 60 ? 'text-red-800' : 'text-blue-800'}`}>
                   {quiz.timingMode === 'total' ? 'Total Time' : 'Question Time'}
                 </div>
                 <div className={`text-xl font-bold ${timeLeft < 60 ? 'text-red-600' : 'text-blue-600'}`}>
@@ -311,6 +322,22 @@ function QuizPage({ user }) {
           </div>
         </div>
 
+        {/* Error message within quiz */}
+        {error && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Question */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-start mb-6">
@@ -323,12 +350,6 @@ function QuizPage({ user }) {
                 <span className="bg-gray-100 px-2 py-1 rounded">{currentQuestion.points} Marks</span>
                 <span className="mx-2">•</span>
                 <span>{currentQuestion.type === 'single' ? 'Single Choice' : 'Multiple Choice'}</span>
-                {quiz.timingMode === 'per-question' && (
-                  <>
-                    <span className="mx-2">•</span>
-                    <span>Time: {formatTime(currentQuestion.timeLimit)}</span>
-                  </>
-                )}
               </div>
             </div>
           </div>
@@ -360,15 +381,27 @@ function QuizPage({ user }) {
                   }`}
                 >
                   <div className="flex items-center">
-                    <div className={`flex-shrink-0 h-5 w-5 rounded-full border flex items-center justify-center ${
-                      isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
-                    }`}>
-                      {isSelected && (
-                        <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
+                    {currentQuestion.type === 'multiple' ? (
+                      <div className={`flex-shrink-0 h-5 w-5 rounded border flex items-center justify-center ${
+                        isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                      }`}>
+                        {isSelected && (
+                          <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={`flex-shrink-0 h-5 w-5 rounded-full border flex items-center justify-center ${
+                        isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                      }`}>
+                        {isSelected && (
+                          <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                    )}
                     <span className="ml-3 text-gray-800">{option.text}</span>
                   </div>
                 </div>
@@ -380,33 +413,59 @@ function QuizPage({ user }) {
         {/* Navigation */}
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <div>
-            <button
-              onClick={handlePreviousQuestion}
-              disabled={currentQuestionIndex === 0}
-              className={`px-6 py-3 rounded-lg font-medium ${
-                currentQuestionIndex === 0
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              Previous
-            </button>
+            {quiz.timingMode === 'total' ? (
+              <button
+                onClick={handlePreviousQuestion}
+                disabled={currentQuestionIndex === 0 || isSubmitting}
+                className={`px-6 py-3 rounded-lg font-medium ${
+                  currentQuestionIndex === 0 || isSubmitting
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Previous
+              </button>
+            ) : (
+              <div className="text-sm text-gray-500 py-3">
+                Cannot navigate back in fixed-time mode
+              </div>
+            )}
           </div>
           
           <div className="flex gap-4">
             {currentQuestionIndex < quiz.questions.length - 1 ? (
               <button
                 onClick={() => handleNextQuestion(false)}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+                disabled={isSubmitting}
+                className={`px-6 py-3 rounded-lg font-medium flex-1 sm:flex-none ${
+                  isSubmitting
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
-                Next
+                {quiz.timingMode === 'per-question' ? 'Next Question' : 'Next'}
               </button>
             ) : (
               <button
                 onClick={handleSubmit}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
+                disabled={isSubmitting}
+                className={`px-6 py-3 rounded-lg font-medium flex-1 sm:flex-none flex items-center justify-center ${
+                  isSubmitting
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
               >
-                Submit Quiz
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Quiz'
+                )}
               </button>
             )}
           </div>

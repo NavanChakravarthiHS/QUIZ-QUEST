@@ -61,7 +61,12 @@ export const adminService = {
   createTeacher: (teacherData) => api.post('/api/admin/create-teacher', teacherData),
   bulkCreateTeachers: (teachers) => api.post('/api/admin/bulk-create-teachers', { teachers }),
   updateTeacher: (id, teacherData) => api.put(`/api/admin/teacher/${id}`, teacherData),
-  deleteTeacher: (id) => api.delete(`/api/admin/teacher/${id}`)
+  deleteTeacher: (id) => api.delete(`/api/admin/teacher/${id}`),
+  // Student management endpoints
+  getAllStudents: () => api.get('/api/admin/students'),
+  createStudent: (studentData) => api.post('/api/admin/create-student', studentData),
+  updateStudent: (id, studentData) => api.put(`/api/admin/student/${id}`, studentData),
+  deleteStudent: (id) => api.delete(`/api/admin/student/${id}`)
 };
 
 export default api;

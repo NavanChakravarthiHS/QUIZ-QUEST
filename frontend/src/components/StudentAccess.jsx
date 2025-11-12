@@ -7,8 +7,8 @@ function StudentAccess() {
   const { quizId } = useParams();
   const navigate = useNavigate();
   
-  const [name, setName] = useState('');
   const [usn, setUsn] = useState('');
+  const [password, setPassword] = useState('');
   const [accessKey, setAccessKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,14 +19,14 @@ function StudentAccess() {
     setLoading(true);
 
     // Validation
-    if (!name.trim()) {
-      setError('Please enter your name');
+    if (!usn.trim()) {
+      setError('Please enter your USN');
       setLoading(false);
       return;
     }
 
-    if (!usn.trim()) {
-      setError('Please enter your USN');
+    if (!password.trim()) {
+      setError('Please enter your password');
       setLoading(false);
       return;
     }
@@ -37,26 +37,19 @@ function StudentAccess() {
       return;
     }
 
-    // Validate name contains only alphabetic characters and spaces
-    if (!/^[a-zA-Z\s]+$/.test(name)) {
-      setError('Name should only contain alphabetic characters and spaces');
-      setLoading(false);
-      return;
-    }
-
-    // Validate USN format (assuming it's alphanumeric)
-    if (!/^[a-zA-Z0-9]+$/.test(usn)) {
-      setError('USN should only contain alphanumeric characters');
+    // Validate USN format (must follow 4HG[Year][Branch][Serial] format)
+    if (!/^4HG\d{2}(CS|EC|EE|ME|CV)\d{3}$/.test(usn)) {
+      setError('USN must follow the format 4HG[Year][Branch][Serial] (e.g., 4HG23CS043)');
       setLoading(false);
       return;
     }
 
     try {
-      // Call the new student access endpoint
+      // Call the student access endpoint with USN, password, and access key
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const response = await axios.post(`${API_URL}/api/quiz/student-access/${quizId}`, {
-        name,
         usn,
+        password,
         accessKey
       });
       
@@ -66,7 +59,7 @@ function StudentAccess() {
       // Navigate to the quiz page
       navigate(`/quiz/${quizId}`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to access quiz. Please try again.');
+      setError(err.response?.data?.message || 'Failed to access quiz. Please verify your credentials and access key. Make sure your USN follows the format 4HG[Year][Branch][Serial] (e.g., 4HG23CS043) and your password is correct.');
     } finally {
       setLoading(false);
     }
@@ -85,7 +78,7 @@ function StudentAccess() {
             Quiz Access
           </h1>
           <p className="text-gray-600">
-            Enter your details to access the quiz
+            Enter your credentials to access the quiz
           </p>
         </div>
 
@@ -107,30 +100,6 @@ function StudentAccess() {
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Full Name *
-            </label>
-            <div className="relative rounded-md shadow-sm">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your full name"
-                className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 py-3 sm:text-sm border-gray-300 rounded-lg border"
-                required
-              />
-            </div>
-            <p className="text-sm text-gray-500 mt-1">
-              Only alphabetic characters and spaces allowed
-            </p>
-          </div>
-
-          <div className="mb-8">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
               USN *
             </label>
             <div className="relative rounded-md shadow-sm">
@@ -143,14 +112,35 @@ function StudentAccess() {
                 type="text"
                 value={usn}
                 onChange={(e) => setUsn(e.target.value)}
-                placeholder="Enter your USN"
+                placeholder="e.g., 4HG23CS043"
                 className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 py-3 sm:text-sm border-gray-300 rounded-lg border"
                 required
               />
             </div>
             <p className="text-sm text-gray-500 mt-1">
-              Alphanumeric characters only
+              Format: 4HG[Year][Branch][Serial] (e.g., 4HG23CS043)
             </p>
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password *
+            </label>
+            <div className="relative rounded-md shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 py-3 sm:text-sm border-gray-300 rounded-lg border"
+                required
+              />
+            </div>
           </div>
 
           <div className="mb-8">
@@ -164,16 +154,17 @@ function StudentAccess() {
                 </svg>
               </div>
               <input
-                type="password"
+                type="text"
                 value={accessKey}
-                onChange={(e) => setAccessKey(e.target.value)}
-                placeholder="Enter the access key provided by teacher"
+                onChange={(e) => setAccessKey(e.target.value.toUpperCase())}
+                placeholder="Enter the 5-character access key"
                 className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 py-3 sm:text-sm border-gray-300 rounded-lg border"
+                maxLength="5"
                 required
               />
             </div>
             <p className="text-sm text-gray-500 mt-1">
-              Ask your teacher for the access key
+              5 alphanumeric characters provided by your teacher
             </p>
           </div>
 
@@ -188,7 +179,7 @@ function StudentAccess() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Accessing Quiz...
+                Verifying...
               </>
             ) : (
               'Access Quiz'

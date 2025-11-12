@@ -14,8 +14,8 @@ function AnalyticsDashboard({ quiz, onClose }) {
     try {
       setLoading(true);
       setError('');
-      const data = await quizService.getQuizAnalytics(quiz._id);
-      setAnalyticsData(data);
+      const response = await quizService.getQuizAnalytics(quiz._id);
+      setAnalyticsData(response.data);
     } catch (err) {
       console.error('Failed to load analytics:', err);
       setError('Failed to load analytics: ' + (err.response?.data?.message || err.message || 'Unknown error'));

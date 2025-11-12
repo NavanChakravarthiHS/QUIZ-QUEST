@@ -5,6 +5,7 @@ const Attempt = require('../models/Attempt');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const optionalAuth = require('../middleware/optionalAuth');
+const { generateAccessKey } = require('../utils/accessKeyGenerator');
 
 // Create Quiz (Teacher only)
 router.post('/create', auth, async (req, res) => {
@@ -82,7 +83,8 @@ router.post('/create', auth, async (req, res) => {
       totalDuration,
       createdBy: req.user._id,
       scheduledDate: scheduledDate || null,
-      scheduledTime: scheduledTime || null
+      scheduledTime: scheduledTime || null,
+      accessKey: generateAccessKey()
     });
 
     await quiz.save();
@@ -96,7 +98,8 @@ router.post('/create', auth, async (req, res) => {
         timingMode: quiz.timingMode,
         totalDuration: quiz.totalDuration,
         scheduledDate: quiz.scheduledDate,
-        scheduledTime: quiz.scheduledTime
+        scheduledTime: quiz.scheduledTime,
+        accessKey: quiz.accessKey
       }
     });
   } catch (error) {
@@ -195,25 +198,20 @@ router.get('/join/:quizId', auth, async (req, res) => {
 // Student access quiz (for QR code access)
 router.post('/student-access/:quizId', optionalAuth, async (req, res) => {
   try {
-    const { name, usn, accessKey } = req.body;
+    const { usn, password, accessKey } = req.body;
     const { quizId } = req.params;
 
     // Validate input
-    if (!name || !name.trim()) {
-      return res.status(400).json({ message: 'Name is required' });
-    }
-
     if (!usn || !usn.trim()) {
       return res.status(400).json({ message: 'USN is required' });
     }
 
-    if (!accessKey || !accessKey.trim()) {
-      return res.status(400).json({ message: 'Access key is required' });
+    if (!password || !password.trim()) {
+      return res.status(400).json({ message: 'Password is required' });
     }
 
-    // Validate name format
-    if (!/^[a-zA-Z\s]+$/.test(name)) {
-      return res.status(400).json({ message: 'Name should only contain alphabetic characters and spaces' });
+    if (!accessKey || !accessKey.trim()) {
+      return res.status(400).json({ message: 'Access key is required' });
     }
 
     // Validate USN format
@@ -221,24 +219,32 @@ router.post('/student-access/:quizId', optionalAuth, async (req, res) => {
       return res.status(400).json({ message: 'USN should only contain alphanumeric characters' });
     }
 
+    // Find the student by USN
+    const student = await User.findOne({ usn: usn.trim(), role: 'student' });
+    if (!student) {
+      return res.status(401).json({ message: 'Invalid USN or password. Please check your credentials and try again.' });
+    }
+
+    // Verify password
+    const isPasswordValid = await student.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid USN or password. Please check your credentials and try again.' });
+    }
+
+    // Get the quiz
     const quiz = await Quiz.findOne({ _id: quizId, isActive: true });
     if (!quiz) {
       return res.status(404).json({ message: 'Invalid or inactive quiz' });
     }
 
     // Validate access key
-    // The access key should match the quiz title (simplified validation)
-    // In production, you might want to generate and store actual keys
-    if (accessKey !== quiz.title) {
+    if (accessKey !== quiz.accessKey) {
       return res.status(401).json({ message: 'Invalid access key. Please check with your teacher.' });
     }
 
     // Check if student already has an attempt for this quiz
-    // For simplicity, we'll use a combination of name and USN to identify the student
-    // In a real implementation, you might want a more robust student identification system
     const existingAttempt = await Attempt.findOne({
-      'studentInfo.name': name,
-      'studentInfo.usn': usn,
+      userId: student._id,
       quizId: quiz._id
     });
 
@@ -246,32 +252,13 @@ router.post('/student-access/:quizId', optionalAuth, async (req, res) => {
       return res.status(400).json({ message: 'You have already attempted this quiz' });
     }
 
-    // Create a temporary student record if one doesn't exist
-    let student = await User.findOne({ usn: usn, role: 'student' });
-    
-    if (!student) {
-      // Create a temporary student user
-      student = new User({
-        name: name,
-        usn: usn,
-        email: `${usn}@student.edu`, // Generate email from USN
-        passwordHash: 'temp-password', // This won't be used since they access via QR code
-        role: 'student',
-        branch: 'temp' // This would need to be collected or determined
-      });
-      
-      // Don't save the temporary user to the database
-      // Instead, we'll store the student info in the attempt
-    }
-
     // Create attempt with student info
     const attempt = new Attempt({
-      // If user is authenticated, use their ID, otherwise mark as student access
-      userId: req.user ? req.user._id : null,
+      userId: student._id,
       quizId: quiz._id,
       studentInfo: {
-        name: name,
-        usn: usn
+        name: student.name,
+        usn: student.usn
       },
       startedAt: new Date()
     });
@@ -600,7 +587,7 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
 
     // Get all attempts for this quiz
     const attempts = await Attempt.find({ quizId: quiz._id })
-      .populate('userId', 'name email');
+      .populate('userId', 'name email usn');
 
     if (attempts.length === 0) {
       return res.json({
@@ -653,7 +640,7 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
       });
     });
 
-    // Prepare response data
+    // Prepare response data - handle both registered users and QR code students
     const responseData = {
       quiz: {
         id: quiz._id,
@@ -669,19 +656,37 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
         completionRate: Math.round(completionRate * 100) / 100,
         scoreDistribution: scoreDistribution
       },
-      attempts: attempts.map(attempt => ({
-        id: attempt._id,
-        student: {
-          name: attempt.userId.name,
-          email: attempt.userId.email
-        },
-        score: attempt.score,
-        totalScore: attempt.totalScore,
-        percentage: attempt.totalScore > 0 ? Math.round((attempt.score / attempt.totalScore) * 10000) / 100 : 0,
-        submittedAt: attempt.submittedAt,
-        timeSpent: attempt.timeSpent,
-        status: attempt.status
-      }))
+      attempts: attempts.map(attempt => {
+        // Handle both registered users and QR code students
+        let studentName, studentEmail;
+        
+        if (attempt.userId) {
+          // Registered user
+          studentName = attempt.userId.name;
+          studentEmail = attempt.userId.email || attempt.userId.usn + '@student.quizquest.com';
+        } else if (attempt.studentInfo) {
+          // QR code student
+          studentName = attempt.studentInfo.name;
+          studentEmail = attempt.studentInfo.usn ? attempt.studentInfo.usn + '@student.quizquest.com' : 'N/A';
+        } else {
+          studentName = 'Unknown Student';
+          studentEmail = 'N/A';
+        }
+
+        return {
+          id: attempt._id,
+          student: {
+            name: studentName,
+            email: studentEmail
+          },
+          score: attempt.score,
+          totalScore: attempt.totalScore,
+          percentage: attempt.totalScore > 0 ? Math.round((attempt.score / attempt.totalScore) * 10000) / 100 : 0,
+          submittedAt: attempt.submittedAt,
+          timeSpent: attempt.timeSpent,
+          status: attempt.status
+        };
+      })
     };
 
     res.json(responseData);

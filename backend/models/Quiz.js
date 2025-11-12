@@ -68,6 +68,11 @@ const quizSchema = new mongoose.Schema({
   scheduledTime: {
     type: String, // Store as "HH:MM" format
     default: null
+  },
+  accessKey: {
+    type: String,
+    unique: true,
+    default: null
   }
 }, {
   timestamps: true,
