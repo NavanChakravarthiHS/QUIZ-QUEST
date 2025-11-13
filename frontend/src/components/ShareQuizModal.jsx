@@ -11,7 +11,14 @@ function ShareQuizModal({ quiz, onClose }) {
 
   const generateQRCode = async () => {
     try {
-      const url = await QRCode.toDataURL(quizUrl, {
+      // Embed both quiz link and access key in QR code
+      const qrData = `Quiz: ${quiz.title}
+Link: ${quizUrl}
+Access Key: ${quiz.accessKey || 'N/A'}
+
+Scan to join the quiz!`;
+      
+      const url = await QRCode.toDataURL(qrData, {
         width: 300,
         margin: 2,
         color: {
@@ -41,6 +48,7 @@ function ShareQuizModal({ quiz, onClose }) {
     const message = `Join my quiz: ${quiz.title}
 
 Quiz Link: ${quizUrl}
+Access Key: ${quiz.accessKey || 'N/A'}
 
 Scan the QR code attached to join instantly!`;
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
@@ -50,13 +58,18 @@ Scan the QR code attached to join instantly!`;
   };
 
   const shareOnFacebook = () => {
-    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(quizUrl)}&quote=${encodeURIComponent(`Join my quiz: ${quiz.title}\n\nScan the QR code below to join instantly!`)}`;
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(quizUrl)}&quote=${encodeURIComponent(`Join my quiz: ${quiz.title}
+
+Access Key: ${quiz.accessKey || 'N/A'}
+
+Scan the QR code below to join instantly!`)}`;
     window.open(facebookUrl, '_blank');
   };
 
   const shareOnTwitter = () => {
     const tweetText = `Check out my quiz: ${quiz.title}
 
+Access Key: ${quiz.accessKey || 'N/A'}
 Scan the QR code below to join!
 
 ${quizUrl}`;
@@ -73,6 +86,7 @@ ${quizUrl}`;
 I'd like to invite you to take my quiz: ${quiz.title}
 
 Quiz Link: ${quizUrl}
+Access Key: ${quiz.accessKey || 'N/A'}
 
 Please download the QR code from the link above or scan it to join instantly!
 
@@ -86,6 +100,7 @@ Best regards`;
   const shareOnTelegram = () => {
     const message = `Join my quiz: ${quiz.title}
 
+Access Key: ${quiz.accessKey || 'N/A'}
 Scan the QR code to join!
 
 ${quizUrl}`;
@@ -127,8 +142,17 @@ ${quizUrl}`;
             <p className="text-gray-400 text-sm">Scan QR code or share with your students</p>
           </div>
 
+          {/* Access Key Display */}
+          <div className="mb-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-4">
+            <div className="text-center">
+              <p className="text-blue-100 text-sm mb-1">Access Key</p>
+              <p className="text-white text-3xl font-bold tracking-widest">{quiz.accessKey || 'N/A'}</p>
+              <p className="text-blue-100 text-xs mt-2">Students will need this key to access the quiz</p>
+            </div>
+          </div>
+
           {/* QR Code - Centered */}
-          <div className="flex justify-center mb-6">
+          <div className="flex flex-col items-center mb-6">
             {qrCodeUrl ? (
               <div className="relative group">
                 <div className="bg-white p-4 rounded-lg shadow-xl">
@@ -161,6 +185,15 @@ ${quizUrl}`;
                 </div>
               </div>
             )}
+            {/* QR Code Info */}
+            <div className="mt-3 text-center">
+              <p className="text-gray-400 text-xs">
+                <svg className="w-4 h-4 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                QR code includes quiz link + access key
+              </p>
+            </div>
           </div>
 
           {/* Share Section */}
