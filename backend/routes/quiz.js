@@ -439,8 +439,17 @@ router.get('/result/:attemptId', auth, async (req, res) => {
 router.get('/all', auth, async (req, res) => {
   try {
     const quizzes = await Quiz.find({ isActive: true })
-      .select('title description timingMode totalDuration questions createdAt createdBy scheduledDate scheduledTime')
+      .select('title description timingMode totalDuration questions createdAt createdBy scheduledDate scheduledTime accessKey')
       .populate('createdBy', 'name');
+
+    // Log the quizzes to see what's being returned
+    console.log('Fetched quizzes for user:', req.user._id);
+    quizzes.forEach(quiz => {
+      console.log(`- ${quiz.title}: ${quiz.accessKey}`);
+    });
+    
+    // Log the actual data being sent
+    console.log('Sending quiz data to frontend:', JSON.stringify(quizzes, null, 2));
 
     res.json(quizzes);
   } catch (error) {
@@ -749,6 +758,35 @@ router.get('/attempt/:attemptId', optionalAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching quiz for attempt:', error);
+    res.status(500).json({ message: 'Error fetching quiz details', error: error.message });
+  }
+});
+
+// Get Quiz Details for Access Page (public endpoint)
+router.get('/details/:quizId', async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.quizId);
+    
+    if (!quiz) {
+      return res.status(404).json({ message: 'Quiz not found' });
+    }
+
+    // Return quiz details without sensitive information
+    const quizDetails = {
+      id: quiz._id,
+      title: quiz.title,
+      description: quiz.description,
+      timingMode: quiz.timingMode,
+      totalDuration: quiz.totalDuration,
+      questionsCount: quiz.questions.length,
+      scheduledDate: quiz.scheduledDate,
+      scheduledTime: quiz.scheduledTime,
+      createdAt: quiz.createdAt
+    };
+
+    res.json(quizDetails);
+  } catch (error) {
+    console.error('Error fetching quiz details:', error);
     res.status(500).json({ message: 'Error fetching quiz details', error: error.message });
   }
 });

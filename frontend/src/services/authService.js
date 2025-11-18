@@ -33,6 +33,7 @@ export const quizService = {
   getMyAttempts: () => api.get('/api/quiz/my-attempts'),
   getQuiz: (id) => api.get(`/api/quiz/${id}`),
   getQuizById: (id) => api.get(`/api/quiz/${id}`), // Alias for getQuiz
+  getQuizDetails: (id) => api.get(`/api/quiz/details/${id}`), // New endpoint for quiz details
   updateQuiz: (id, quizData) => api.put(`/api/quiz/${id}`, quizData),
   deleteQuiz: (id) => api.delete(`/api/quiz/${id}`),
   joinQuiz: (quizId) => api.get(`/api/quiz/join/${quizId}`),

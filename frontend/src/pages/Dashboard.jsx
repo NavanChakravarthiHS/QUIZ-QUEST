@@ -9,6 +9,7 @@ import QRScanner from '../components/QRScanner';
 function Dashboard({ user }) {
   const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState([]);
+  const [filteredQuizzes, setFilteredQuizzes] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,7 @@ function Dashboard({ user }) {
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [filter, setFilter] = useState('all'); // 'all', 'completed', 'upcoming'
 
   useEffect(() => {
     if (user.role === 'teacher') {
@@ -26,11 +28,22 @@ function Dashboard({ user }) {
     }
   }, [user.role]);
 
+  useEffect(() => {
+    if (user.role === 'teacher') {
+      applyFilter();
+    }
+  }, [quizzes, filter]);
+
   const fetchQuizzes = async () => {
     try {
       const response = await quizService.getAllQuizzes();
-      setQuizzes(response.data);
-      setError('');
+      console.log('Fetched quizzes:', response.data); // Log the fetched data
+      
+      // Add a small delay to ensure data is properly loaded
+      setTimeout(() => {
+        setQuizzes(response.data);
+        setError('');
+      }, 100);
     } catch (err) {
       console.error('Failed to load quizzes:', err);
       console.error('Error response:', err.response);
@@ -38,6 +51,32 @@ function Dashboard({ user }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyFilter = () => {
+    if (filter === 'all') {
+      setFilteredQuizzes(quizzes);
+      return;
+    }
+
+    const now = new Date();
+    const filtered = quizzes.filter(quiz => {
+      if (!quiz.scheduledDate) return filter === 'upcoming'; // Treat unscheduled quizzes as upcoming
+      
+      const scheduledDate = new Date(quiz.scheduledDate);
+      
+      if (filter === 'completed') {
+        // Quiz is completed if scheduled date is before today
+        return scheduledDate < new Date(now.setHours(0, 0, 0, 0));
+      } else if (filter === 'upcoming') {
+        // Quiz is upcoming if scheduled date is today or in the future
+        return scheduledDate >= new Date(now.setHours(0, 0, 0, 0));
+      }
+      
+      return true;
+    });
+    
+    setFilteredQuizzes(filtered);
   };
 
   const fetchMyAttempts = async () => {
@@ -139,6 +178,46 @@ function Dashboard({ user }) {
           </div>
         )}
 
+        {user.role === 'teacher' && (
+          <div className="flex gap-4 mb-6 flex-wrap">
+            <div className="flex items-center">
+              <span className="mr-2 text-gray-700 font-medium">Filter:</span>
+              <div className="flex rounded-md shadow-sm">
+                <button
+                  onClick={() => setFilter('all')}
+                  className={`px-4 py-2 text-sm font-medium rounded-l-md ${
+                    filter === 'all'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  } border border-gray-300 focus:outline-none`}
+                >
+                  All Quizzes
+                </button>
+                <button
+                  onClick={() => setFilter('completed')}
+                  className={`px-4 py-2 text-sm font-medium ${
+                    filter === 'completed'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  } border-t border-b border-gray-300 focus:outline-none`}
+                >
+                  Completed
+                </button>
+                <button
+                  onClick={() => setFilter('upcoming')}
+                  className={`px-4 py-2 text-sm font-medium rounded-r-md ${
+                    filter === 'upcoming'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  } border border-gray-300 focus:outline-none`}
+                >
+                  Upcoming
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {user.role === 'student' && (
           <div className="flex gap-4 mb-8 flex-wrap">
             <button
@@ -146,7 +225,7 @@ function Dashboard({ user }) {
               className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition font-semibold inline-flex items-center shadow-sm"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1z" />
               </svg>
               Scan QR Code
             </button>
@@ -160,7 +239,7 @@ function Dashboard({ user }) {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {quizzes.map((quiz, index) => (
+          {(user.role === 'teacher' ? filteredQuizzes : quizzes).map((quiz, index) => (
             <div
               key={quiz._id}
               className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col h-full hover:shadow-md transition-shadow"
@@ -208,6 +287,19 @@ function Dashboard({ user }) {
                     <span className="font-medium">Mode:</span> 
                     <span className="ml-1">{quiz.timingMode === 'total' ? 'Total Time' : 'Per Question'}</span>
                   </div>
+                  
+                  {/* Display access key for teachers */}
+                  {user.role === 'teacher' && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 11-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      </svg>
+                      <span className="font-medium">Access Key:</span> 
+                      <span className="ml-1 font-mono bg-gray-100 px-2 py-1 rounded">
+                        {quiz.accessKey || 'Loading...'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -239,10 +331,29 @@ function Dashboard({ user }) {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                       </button>
+                      {/* New Share Access Key Button */}
+                      <button
+                        onClick={(e) => {
+                          // Copy access key to clipboard
+                          navigator.clipboard.writeText(quiz.accessKey || '');
+                          // Show a temporary success message
+                          const originalText = e.target.title;
+                          e.target.title = 'Copied!';
+                          setTimeout(() => {
+                            e.target.title = originalText;
+                          }, 2000);
+                        }}
+                        className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded transition"
+                        title="Copy Access Key"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
                     </div>
                   )}
                 </div>
-                
+
                 {user.role === 'teacher' && quiz.createdBy && quiz.createdBy._id && (
                   <div className="flex gap-2 mt-2">
                     <Link
@@ -272,7 +383,7 @@ function Dashboard({ user }) {
           ))}
         </div>
 
-        {quizzes.length === 0 && (
+        {(user.role === 'teacher' ? filteredQuizzes : quizzes).length === 0 && (
           <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
               <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

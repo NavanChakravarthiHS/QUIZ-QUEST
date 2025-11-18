@@ -37,7 +37,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Quiz Platform Backend is running' });
 });
 
-const PORT = process.env.PORT || 5003;
+const PORT = process.env.PORT || 5004;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -12,6 +12,7 @@ function QuestionBank({ user }) {
   const [success, setSuccess] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
+  const [continuousMode, setContinuousMode] = useState(false); // New state for continuous mode
 
   // Form state
   const [formData, setFormData] = useState({
@@ -27,6 +28,10 @@ function QuestionBank({ user }) {
     // Removed difficulty field as per requirement
     imageUrl: ''
   });
+
+  // New state for subject input
+  const [subjectInput, setSubjectInput] = useState('');
+  const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
 
   useEffect(() => {
     if (user?.role !== 'teacher') {
@@ -93,6 +98,27 @@ function QuestionBank({ user }) {
     setFormData({ ...formData, options: newOptions });
   };
 
+  // Update the initializeForm function to also reset subject input
+  const initializeForm = () => {
+    setFormData({
+      subject: '',
+      question: '',
+      type: 'single',
+      options: [
+        { text: '', isCorrect: false },
+        { text: '', isCorrect: false },
+        { text: '', isCorrect: false }
+      ],
+      points: 1,
+      // Removed difficulty field as per requirement
+      imageUrl: ''
+    });
+    setSubjectInput('');
+    setEditingQuestion(null);
+    setShowAddForm(true);
+  };
+
+  // Update resetForm to also reset subject input
   const resetForm = () => {
     setFormData({
       subject: '',
@@ -107,8 +133,12 @@ function QuestionBank({ user }) {
       // Removed difficulty field as per requirement
       imageUrl: ''
     });
+    setSubjectInput('');
     setEditingQuestion(null);
-    setShowAddForm(false);
+    // Don't hide the form in continuous mode
+    if (!continuousMode) {
+      setShowAddForm(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -152,7 +182,24 @@ function QuestionBank({ user }) {
         setSuccess('Question added successfully!');
       }
 
-      resetForm();
+      // In continuous mode, reset form but keep it visible
+      if (continuousMode && !editingQuestion) {
+        resetForm();
+        // Keep the subject from the previous question for convenience
+        setFormData(prev => ({
+          ...prev,
+          subject: formData.subject,
+          question: '',
+          options: [
+            { text: '', isCorrect: false },
+            { text: '', isCorrect: false },
+            { text: '', isCorrect: false }
+          ]
+        }));
+      } else {
+        resetForm();
+      }
+
       fetchSubjects();
       fetchQuestions(selectedSubject);
       setTimeout(() => setSuccess(''), 3000);
@@ -162,6 +209,7 @@ function QuestionBank({ user }) {
     }
   };
 
+  // Update handleEdit to set the subject input as well
   const handleEdit = (question) => {
     setFormData({
       subject: question.subject,
@@ -172,7 +220,9 @@ function QuestionBank({ user }) {
       // Removed difficulty field as per requirement
       imageUrl: question.imageUrl || ''
     });
+    setSubjectInput(question.subject);
     setEditingQuestion(question);
+    setContinuousMode(false); // Turn off continuous mode when editing
     setShowAddForm(true);
   };
 
@@ -191,6 +241,11 @@ function QuestionBank({ user }) {
     }
   };
 
+  // Filter subjects based on input
+  const filteredSubjects = subjects.filter(subject => 
+    subject.toLowerCase().includes(subjectInput.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -203,7 +258,15 @@ function QuestionBank({ user }) {
         {/* Actions */}
         <div className="flex gap-4 mb-6 flex-wrap">
           <button
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => {
+              if (showAddForm) {
+                // If form is open, close it
+                setShowAddForm(false);
+              } else {
+                // If form is closed, open it and initialize
+                initializeForm();
+              }
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition font-semibold inline-flex items-center shadow-sm"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -241,18 +304,43 @@ function QuestionBank({ user }) {
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Subject *
                   </label>
-                  <input
-                    type="text"
-                    value={formData.subject}
-                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Mathematics, Science"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={subjectInput}
+                      onChange={(e) => {
+                        setSubjectInput(e.target.value);
+                        setFormData({ ...formData, subject: e.target.value });
+                        setShowSubjectDropdown(true);
+                      }}
+                      onFocus={() => setShowSubjectDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowSubjectDropdown(false), 200)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., Mathematics, Science"
+                      required
+                    />
+                    {showSubjectDropdown && filteredSubjects.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md max-h-60 overflow-auto">
+                        {filteredSubjects.map((subject, index) => (
+                          <div
+                            key={index}
+                            className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                            onMouseDown={() => {
+                              setSubjectInput(subject);
+                              setFormData({ ...formData, subject: subject });
+                              setShowSubjectDropdown(false);
+                            }}
+                          >
+                            {subject}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -340,12 +428,28 @@ function QuestionBank({ user }) {
                 </button>
               </div>
 
+              {/* Continuous Mode Toggle */}
+              {!editingQuestion && (
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="continuousMode"
+                    checked={continuousMode}
+                    onChange={(e) => setContinuousMode(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="continuousMode" className="ml-2 block text-sm text-gray-700">
+                    Add questions continuously (form stays open after saving)
+                  </label>
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <button
                   type="submit"
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition font-semibold"
                 >
-                  {editingQuestion ? 'Update Question' : 'Add Question'}
+                  {editingQuestion ? 'Update Question' : continuousMode ? 'Save & Add Another' : 'Add Question'}
                 </button>
                 <button
                   type="button"
