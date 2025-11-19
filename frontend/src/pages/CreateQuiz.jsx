@@ -52,7 +52,9 @@ function CreateQuiz({ user }) {
   const fetchSubjects = async () => {
     try {
       const response = await questionBankService.getAllSubjects();
-      setSubjects(response.data);
+      // Extract just the subject names from the new data structure
+      const subjectNames = response.data.map(item => item.subject);
+      setSubjects(subjectNames);
     } catch (err) {
       console.error('Error fetching subjects:', err);
     }
@@ -70,13 +72,17 @@ function CreateQuiz({ user }) {
     }
     
     try {
+      console.log('Loading questions from bank for subject:', selectedSubject, 'count:', questionCount);
       const response = await questionBankService.getRandomQuestions(selectedSubject, questionCount);
+      console.log('Response from backend:', response);
       const bankQuestions = response.data;
       
       if (bankQuestions.length === 0) {
         setError(`No questions found for subject: ${selectedSubject}`);
         return;
       }
+      
+      console.log('Bank questions received:', bankQuestions);
       
       // Convert bank questions to quiz format
       const formattedQuestions = bankQuestions.map(q => ({
@@ -88,12 +94,15 @@ function CreateQuiz({ user }) {
         imageUrl: q.imageUrl || ''
       }));
       
+      console.log('Formatted questions:', formattedQuestions);
+      
       setQuestions(formattedQuestions);
       setSuccess(`Loaded ${formattedQuestions.length} questions from ${selectedSubject}`);
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Error loading questions from bank:', err);
-      setError('Failed to load questions from bank');
+      console.error('Error details:', err.response?.data);
+      setError('Failed to load questions from bank: ' + (err.response?.data?.message || err.message));
     }
   };
 

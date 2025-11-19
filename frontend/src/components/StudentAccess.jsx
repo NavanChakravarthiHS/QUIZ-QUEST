@@ -39,17 +39,35 @@ function StudentAccess() {
     setError('');
 
     try {
-      const response = await axios.post('http://localhost:5002/api/auth/student-login', {
+      console.log('Attempting to access quiz with:', { quizId, usn, accessKey });
+      
+      const response = await axios.post(`http://localhost:5002/api/quiz/student-access/${quizId}`, {
         usn,
         password,
-        accessKey,
-        quizId
+        accessKey
       });
 
-      localStorage.setItem('token', response.data.token);
-      navigate(`/quiz/${quizId}`);
+      console.log('Student access response:', response.data);
+      
+      // Store the attempt ID in localStorage for QR code students
+      localStorage.setItem('currentAttemptId', response.data.attemptId);
+      
+      // Navigate to quiz page with attempt ID as query parameter
+      navigate(`/quiz/${quizId}?attemptId=${response.data.attemptId}`);
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred during login');
+      console.error('Student access error:', err);
+      
+      // Handle different types of errors
+      if (err.response) {
+        // Server responded with error status
+        setError(err.response.data.message || 'An error occurred during login. Please try again.');
+      } else if (err.request) {
+        // Request was made but no response received
+        setError('Unable to connect to the server. Please check your connection and try again.');
+      } else {
+        // Something else happened
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -229,7 +247,7 @@ function StudentAccess() {
                 <div className="w-full max-w-md mx-auto">
                   <form onSubmit={handleSubmit} className="space-y-6">
                     {error && (
-                      <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
+                      <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6 animate-fade-in">
                         <div className="flex">
                           <div className="flex-shrink-0">
                             <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -237,7 +255,10 @@ function StudentAccess() {
                             </svg>
                           </div>
                           <div className="ml-3">
-                            <p className="text-sm text-red-700">{error}</p>
+                            <h3 className="text-sm font-medium text-red-800">Error</h3>
+                            <div className="mt-2 text-sm text-red-700">
+                              <p>{error}</p>
+                            </div>
                           </div>
                         </div>
                       </div>

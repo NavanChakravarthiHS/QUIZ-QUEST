@@ -298,7 +298,7 @@ router.post('/student-access/:quizId', optionalAuth, async (req, res) => {
 });
 
 // Submit Quiz
-router.post('/submit', auth, async (req, res) => {
+router.post('/submit', optionalAuth, async (req, res) => {
   try {
     const { attemptId, quizId, answers } = req.body;
 
@@ -438,7 +438,16 @@ router.get('/result/:attemptId', auth, async (req, res) => {
 // Get All Quizzes (for dashboard)
 router.get('/all', auth, async (req, res) => {
   try {
-    const quizzes = await Quiz.find({ isActive: true })
+    // Only teachers can access this endpoint
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Only teachers can access this endpoint' });
+    }
+
+    // Only fetch quizzes created by the current teacher
+    const quizzes = await Quiz.find({ 
+      isActive: true,
+      createdBy: req.user._id  // Filter by teacher ID
+    })
       .select('title description timingMode totalDuration questions createdAt createdBy scheduledDate scheduledTime accessKey')
       .populate('createdBy', 'name');
 
@@ -720,14 +729,24 @@ router.get('/attempt/:attemptId', optionalAuth, async (req, res) => {
     // Check if the attempt belongs to the user or is a QR code attempt
     if (req.user) {
       // Authenticated user - check if they own this attempt
+      // For QR code students who later register, they might have both userId and studentInfo
       if (attempt.userId && attempt.userId.toString() !== req.user._id.toString()) {
-        return res.status(403).json({ message: 'Unauthorized' });
+        // If there's a userId but it doesn't match, check if it's a QR code student
+        if (!attempt.studentInfo) {
+          return res.status(403).json({ message: 'Unauthorized' });
+        }
       }
+      // If userId matches or there's studentInfo, allow access
     } else {
-      // QR code student - check if they have student info
-      if (!attempt.studentInfo) {
+      // QR code student - check if they have student info or userId (for cases where they accessed via QR but have an account)
+      if (!attempt.studentInfo && !attempt.userId) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
+    }
+
+    // Check if quiz exists
+    if (!attempt.quizId) {
+      return res.status(404).json({ message: 'Quiz not found for this attempt' });
     }
 
     // Return quiz details without correct answers

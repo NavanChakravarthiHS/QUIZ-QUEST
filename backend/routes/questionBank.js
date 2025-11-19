@@ -3,19 +3,32 @@ const router = express.Router();
 const QuestionBank = require('../models/QuestionBank');
 const auth = require('../middleware/auth');
 
-// Get all subjects (for dropdown)
+// Get all subjects with question counts (for dropdown)
 router.get('/subjects', auth, async (req, res) => {
   try {
     if (req.user.role !== 'teacher') {
       return res.status(403).json({ message: 'Only teachers can access question bank' });
     }
 
-    const subjects = await QuestionBank.distinct('subject', { 
-      createdBy: req.user._id, 
-      isActive: true 
-    });
+    const subjectsWithCounts = await QuestionBank.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id: "$subject",
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          subject: "$_id",
+          count: 1
+        }
+      },
+      { $sort: { subject: 1 } }
+    ]);
     
-    res.json(subjects);
+    res.json(subjectsWithCounts);
   } catch (error) {
     console.error('Error fetching subjects:', error);
     res.status(500).json({ message: 'Error fetching subjects', error: error.message });
@@ -30,7 +43,7 @@ router.get('/all', auth, async (req, res) => {
     }
 
     const { subject } = req.query;
-    const filter = { createdBy: req.user._id, isActive: true };
+    const filter = { isActive: true };
     
     if (subject) {
       filter.subject = subject;
@@ -60,16 +73,31 @@ router.get('/random/:subject/:count', auth, async (req, res) => {
       return res.status(400).json({ message: 'Invalid question count' });
     }
 
+    console.log('Fetching random questions for subject:', subject, 'count:', questionCount);
+    
+    // First, let's check how many questions exist for this subject
+    const totalQuestions = await QuestionBank.countDocuments({
+      subject: subject,
+      isActive: true
+    });
+    
+    console.log('Total questions available for subject:', totalQuestions);
+    
+    if (totalQuestions === 0) {
+      return res.status(404).json({ message: `No questions found for subject: ${subject}` });
+    }
+
     const questions = await QuestionBank.aggregate([
       { 
         $match: { 
           subject: subject,
-          createdBy: req.user._id,
           isActive: true
         }
       },
       { $sample: { size: questionCount } }
     ]);
+    
+    console.log('Questions fetched from aggregation:', questions.length);
 
     res.json(questions);
   } catch (error) {

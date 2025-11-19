@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { quizService } from '../services/authService';
 
 function QuizPage({ user }) {
   const { quizId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
   const [quiz, setQuiz] = useState(null);
@@ -65,8 +66,14 @@ function QuizPage({ user }) {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timer);
-            // Auto-move to next question when time expires
-            handleNextQuestion(true); // true indicates auto-move due to time expiration
+            // Check if this is the last question
+            if (currentQuestionIndex === quiz.questions.length - 1) {
+              // Auto-submit quiz when time expires on the last question
+              handleSubmit(true); // true indicates auto-submit due to time expiration
+            } else {
+              // Auto-move to next question when time expires (not last question)
+              handleNextQuestion(true); // true indicates auto-move due to time expiration
+            }
             return 0;
           }
           return prev - 1;
@@ -81,14 +88,19 @@ function QuizPage({ user }) {
     try {
       setLoading(true);
       
-      // Check if we have an attempt ID from localStorage (for QR code students)
+      // Check if we have an attempt ID from query parameters or localStorage
+      const urlAttemptId = searchParams.get('attemptId');
       const storedAttemptId = localStorage.getItem('currentAttemptId');
+      const finalAttemptId = urlAttemptId || storedAttemptId;
       
-      if (storedAttemptId) {
+      console.log('Fetching quiz with attempt ID:', { urlAttemptId, storedAttemptId, finalAttemptId });
+      
+      if (finalAttemptId) {
         // This is a QR code student with an existing attempt
-        const response = await quizService.getQuizForAttempt(storedAttemptId);
+        const response = await quizService.getQuizForAttempt(finalAttemptId);
+        console.log('Quiz for attempt response:', response.data);
         setQuiz(response.data.quiz);
-        setAttemptId(storedAttemptId);
+        setAttemptId(finalAttemptId);
         
         // Start timer based on quiz timing mode
         if (response.data.quiz.timingMode === 'total') {
@@ -101,6 +113,7 @@ function QuizPage({ user }) {
       } else if (user) {
         // Authenticated user
         const response = await quizService.joinQuiz(quizId);
+        console.log('Join quiz response:', response.data);
         setQuiz(response.data.quiz);
         setAttemptId(response.data.attemptId);
         
@@ -114,12 +127,27 @@ function QuizPage({ user }) {
         setQuestionStartTime(Date.now());
       } else {
         // Redirect to student access page if not authenticated and no attempt ID
+        console.log('No attempt ID found, redirecting to student access');
         navigate(`/student-access/${quizId}`);
         return;
       }
     } catch (err) {
       console.error('Error loading quiz:', err);
-      setError(err.response?.data?.message || 'Failed to load quiz');
+      
+      // Handle different types of errors
+      if (err.response) {
+        if (err.response.status === 403) {
+          setError('Unauthorized access. Please check your credentials and try again.');
+        } else if (err.response.status === 404) {
+          setError('Quiz or attempt not found. Please contact your teacher.');
+        } else {
+          setError(err.response.data.message || 'Failed to load quiz. Please try again.');
+        }
+      } else if (err.request) {
+        setError('Unable to connect to the server. Please check your connection and try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -154,11 +182,6 @@ function QuizPage({ user }) {
     if (currentQuestionIndex < quiz.questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       setQuestionStartTime(Date.now());
-    } else {
-      // If this is the last question and we're auto-moving due to time expiration, submit the quiz
-      if (isAutoMove) {
-        handleSubmit(true);
-      }
     }
   };
 
@@ -209,6 +232,8 @@ function QuizPage({ user }) {
           timeSpent: questionTimes[questionIndex] || 0
         };
       });
+      
+      console.log('Submitting quiz with data:', { attemptId, quizId: quiz.id || quiz._id, answers: formattedAnswers, tabSwitches: tabSwitchCount });
 
       const response = await quizService.submitQuiz({
         attemptId,
@@ -216,6 +241,8 @@ function QuizPage({ user }) {
         answers: formattedAnswers,
         tabSwitches: tabSwitchCount
       });
+      
+      console.log('Quiz submission response:', response.data);
 
       // Clear the attempt ID from localStorage
       localStorage.removeItem('currentAttemptId');
@@ -225,7 +252,24 @@ function QuizPage({ user }) {
       navigate(`/result/${attemptId}`);
     } catch (err) {
       console.error('Error submitting quiz:', err);
-      setError(err.response?.data?.message || 'Failed to submit quiz');
+      
+      // Handle different types of errors
+      if (err.response) {
+        if (err.response.status === 403) {
+          setError('Unauthorized access. Please check your credentials and try again.');
+        } else if (err.response.status === 404) {
+          setError('Quiz or attempt not found. Please contact your teacher.');
+        } else if (err.response.status === 400) {
+          setError('Quiz already submitted or invalid data. Please contact your teacher.');
+        } else {
+          setError(err.response.data.message || 'Failed to submit quiz. Please try again.');
+        }
+      } else if (err.request) {
+        setError('Unable to connect to the server. Please check your connection and try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
+      
       setIsSubmitting(false);
     }
   };

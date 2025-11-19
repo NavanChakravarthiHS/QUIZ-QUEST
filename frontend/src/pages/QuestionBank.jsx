@@ -45,7 +45,9 @@ function QuestionBank({ user }) {
   const fetchSubjects = async () => {
     try {
       const response = await questionBankService.getAllSubjects();
-      setSubjects(response.data);
+      // Transform the data to match the expected format
+      const subjectsWithCounts = response.data;
+      setSubjects(subjectsWithCounts);
     } catch (err) {
       console.error('Error fetching subjects:', err);
     }
@@ -241,10 +243,13 @@ function QuestionBank({ user }) {
     }
   };
 
-  // Filter subjects based on input
-  const filteredSubjects = subjects.filter(subject => 
-    subject.toLowerCase().includes(subjectInput.toLowerCase())
-  );
+  // Get filtered subjects for dropdown (extract just the subject names)
+  const filteredSubjects = subjects
+    .map(s => s.subject)
+    .filter(subject => 
+      subject.toLowerCase().includes(subjectInput.toLowerCase()) && 
+      subject !== subjectInput
+    );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
@@ -476,17 +481,17 @@ function QuestionBank({ user }) {
             >
               All Subjects
             </button>
-            {subjects.map((subject) => (
+            {subjects.map((subjectObj) => (
               <button
-                key={subject}
-                onClick={() => handleSubjectFilter(subject)}
+                key={subjectObj.subject}
+                onClick={() => handleSubjectFilter(subjectObj.subject)}
                 className={`px-4 py-2 rounded-lg transition font-medium ${
-                  selectedSubject === subject 
+                  selectedSubject === subjectObj.subject 
                     ? 'bg-blue-600 text-white' 
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {subject}
+                {subjectObj.subject} ({subjectObj.count})
               </button>
             ))}
           </div>
