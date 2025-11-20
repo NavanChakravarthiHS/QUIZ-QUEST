@@ -11,7 +11,62 @@ function StudentDashboard({ user }) {
   const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
-    fetchMyAttempts();
+    // Check for pending quiz access from student access portal
+    const checkPendingQuizAccess = async () => {
+      const pendingQuizAccessInfo = localStorage.getItem('pendingQuizAccessInfo');
+      if (pendingQuizAccessInfo) {
+        try {
+          const { quizId, attemptId } = JSON.parse(pendingQuizAccessInfo);
+          
+          // Remove pending quiz access info
+          localStorage.removeItem('pendingQuizAccessInfo');
+          
+          // Navigate to quiz page with attempt ID as query parameter
+          navigate(`/quiz/${quizId}?attemptId=${attemptId}`);
+          return;
+        } catch (err) {
+          console.error('Error accessing pending quiz:', err);
+          // Remove pending quiz access info if there's an error
+          localStorage.removeItem('pendingQuizAccessInfo');
+        }
+      }
+      
+      // Check for pending quiz access from QR code (existing logic)
+      const pendingQuizAccess = localStorage.getItem('pendingQuizAccess');
+      if (pendingQuizAccess) {
+        try {
+          const { quizId, usn, password, accessKey } = JSON.parse(pendingQuizAccess);
+          
+          // Access the quiz
+          const response = await quizService.studentAccess(quizId, {
+            usn,
+            password,
+            accessKey
+          });
+          
+          console.log('Student access response:', response.data);
+          
+          // Store the attempt ID in localStorage
+          localStorage.setItem('currentAttemptId', response.data.attemptId);
+          
+          // Remove pending quiz access
+          localStorage.removeItem('pendingQuizAccess');
+          
+          // Navigate to quiz page with attempt ID as query parameter
+          navigate(`/quiz/${quizId}?attemptId=${response.data.attemptId}`);
+          return;
+        } catch (err) {
+          console.error('Error accessing pending quiz:', err);
+          // Remove pending quiz access if there's an error
+          localStorage.removeItem('pendingQuizAccess');
+        }
+      }
+      
+      // If no pending quiz access, fetch attempts as usual
+      fetchMyAttempts();
+    };
+    
+    checkPendingQuizAccess();
   }, []);
 
   const fetchMyAttempts = async () => {

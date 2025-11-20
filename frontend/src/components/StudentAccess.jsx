@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { quizService } from '../services/authService';
+import { quizService, authService } from '../services/authService';
 import axios from 'axios';
 
 function StudentAccess() {
@@ -41,6 +41,22 @@ function StudentAccess() {
     try {
       console.log('Attempting to access quiz with:', { quizId, usn, accessKey });
       
+      // First, authenticate the student
+      const email = `${usn.toLowerCase()}@student.quizquest.com`;
+      const authResponse = await authService.login({ email, password });
+      
+      // Check if the user is a student
+      if (authResponse.data.user.role !== 'student') {
+        setError('Access denied. This login is for students only.');
+        setLoading(false);
+        return;
+      }
+      
+      // Store user data in localStorage
+      localStorage.setItem('token', authResponse.data.token);
+      localStorage.setItem('user', JSON.stringify(authResponse.data.user));
+      
+      // Now access the quiz
       const response = await quizService.studentAccess(quizId, {
         usn,
         password,
@@ -52,15 +68,27 @@ function StudentAccess() {
       // Store the attempt ID in localStorage for QR code students
       localStorage.setItem('currentAttemptId', response.data.attemptId);
       
-      // Navigate to quiz page with attempt ID as query parameter
-      navigate(`/quiz/${quizId}?attemptId=${response.data.attemptId}`);
+      // Instead of navigating directly to the quiz, store the quiz access info
+      // and redirect to the student dashboard
+      const quizAccessInfo = {
+        quizId,
+        attemptId: response.data.attemptId
+      };
+      localStorage.setItem('pendingQuizAccessInfo', JSON.stringify(quizAccessInfo));
+      
+      // Navigate to student dashboard
+      navigate('/dashboard');
     } catch (err) {
       console.error('Student access error:', err);
       
       // Handle different types of errors
       if (err.response) {
         // Server responded with error status
-        setError(err.response.data.message || 'An error occurred during login. Please try again.');
+        if (err.response.status === 401) {
+          setError('Invalid USN, password, or access key');
+        } else {
+          setError(err.response.data.message || 'An error occurred during login. Please try again.');
+        }
       } else if (err.request) {
         // Request was made but no response received
         setError('Unable to connect to the server. Please check your connection and try again.');
@@ -140,7 +168,7 @@ function StudentAccess() {
                       <div className="flex items-center mb-3">
                         <div className="bg-cyan-500 p-2 rounded-lg mr-3">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002-2h2a2 2 0 002 2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
                         </div>
                         <h3 className="font-bold text-cyan-800">Questions</h3>

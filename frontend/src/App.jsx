@@ -46,6 +46,19 @@ function App() {
     setUser(null);
   };
 
+  // Function to refresh user data
+  const refreshUser = () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
+    } else {
+      setUser(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
