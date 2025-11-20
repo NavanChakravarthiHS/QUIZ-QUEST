@@ -19,6 +19,7 @@ function QuizPage({ user }) {
   const [questionStartTime, setQuestionStartTime] = useState(null);
   const [questionTimes, setQuestionTimes] = useState({}); // Track time spent on each question
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [autoSubmitMessage, setAutoSubmitMessage] = useState(''); // For auto-submit notifications
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -44,7 +45,7 @@ function QuizPage({ user }) {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timer);
-            handleSubmit(true); // Auto-submit when time runs out
+            handleAutoSubmit('total'); // Auto-submit when time runs out
             return 0;
           }
           return prev - 1;
@@ -69,7 +70,7 @@ function QuizPage({ user }) {
             // Check if this is the last question
             if (currentQuestionIndex === quiz.questions.length - 1) {
               // Auto-submit quiz when time expires on the last question
-              handleSubmit(true); // true indicates auto-submit due to time expiration
+              handleAutoSubmit('per-question'); // Auto-submit due to time expiration
             } else {
               // Auto-move to next question when time expires (not last question)
               handleNextQuestion(true); // true indicates auto-move due to time expiration
@@ -209,6 +210,14 @@ function QuizPage({ user }) {
     }
   };
 
+  // Handle auto-submission when timer ends
+  const handleAutoSubmit = (timingMode) => {
+    setAutoSubmitMessage(`Time's up! Auto-submitting your quiz...`);
+    setTimeout(() => {
+      handleSubmit(true); // true indicates auto-submit
+    }, 1000); // Small delay to show the message
+  };
+
   const handleSubmit = async (isAutoSubmit = false) => {
     if (isSubmitting) return; // Prevent double submission
     setIsSubmitting(true);
@@ -325,6 +334,22 @@ function QuizPage({ user }) {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Auto-submit notification */}
+        {autoSubmitMessage && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">{autoSubmitMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -491,7 +516,7 @@ function QuizPage({ user }) {
               </button>
             ) : (
               <button
-                onClick={handleSubmit}
+                onClick={() => handleSubmit(false)}
                 disabled={isSubmitting}
                 className={`px-6 py-3 rounded-lg font-medium flex-1 sm:flex-none flex items-center justify-center ${
                   isSubmitting

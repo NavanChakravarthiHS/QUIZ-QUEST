@@ -41,7 +41,7 @@ function StudentAccess() {
     try {
       console.log('Attempting to access quiz with:', { quizId, usn, accessKey });
       
-      const response = await axios.post(`http://localhost:5002/api/quiz/student-access/${quizId}`, {
+      const response = await quizService.studentAccess(quizId, {
         usn,
         password,
         accessKey

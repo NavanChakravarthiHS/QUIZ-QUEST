@@ -47,7 +47,9 @@ const createSampleData = async () => {
         name: 'Jane Student',
         email: 'student@quiz.com',
         passwordHash: 'password123', // Will be hashed by pre-save hook
-        role: 'student'
+        role: 'student',
+        branch: 'CSE',
+        usn: '4HG23CS001'
       });
       await newStudent.save();
       console.log('✓ Created student user: student@quiz.com / password123');
@@ -98,7 +100,9 @@ const createSampleData = async () => {
         ],
         timingMode: 'total',
         totalDuration: 300, // 5 minutes
-        isActive: true
+        isActive: true,
+        scheduledDate: new Date(), // Add scheduled date
+        scheduledTime: '10:00' // Add scheduled time
       },
       {
         title: 'Programming Languages Quiz',
@@ -131,7 +135,9 @@ const createSampleData = async () => {
         ],
         timingMode: 'total',
         totalDuration: 180, // 3 minutes
-        isActive: true
+        isActive: true,
+        scheduledDate: new Date(Date.now() + 86400000), // Tomorrow
+        scheduledTime: '14:30' // Add scheduled time
       },
       {
         title: 'Quick Geography Quiz',
@@ -166,7 +172,9 @@ const createSampleData = async () => {
         ],
         timingMode: 'per-question',
         totalDuration: 240, // 4 minutes total
-        isActive: true
+        isActive: true,
+        scheduledDate: new Date(Date.now() - 86400000), // Yesterday
+        scheduledTime: '09:00' // Add scheduled time
       }
     ];
 

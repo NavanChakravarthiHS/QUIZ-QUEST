@@ -443,6 +443,8 @@ router.get('/all', auth, async (req, res) => {
       return res.status(403).json({ message: 'Only teachers can access this endpoint' });
     }
 
+    console.log('Fetching quizzes for teacher:', req.user._id, req.user.name);
+    
     // Only fetch quizzes created by the current teacher
     const quizzes = await Quiz.find({ 
       isActive: true,
@@ -453,6 +455,8 @@ router.get('/all', auth, async (req, res) => {
 
     // Log the quizzes to see what's being returned
     console.log('Fetched quizzes for user:', req.user._id);
+    console.log('Number of quizzes found:', quizzes.length);
+    
     quizzes.forEach(quiz => {
       console.log(`- ${quiz.title}: ${quiz.accessKey}`);
     });
@@ -463,7 +467,13 @@ router.get('/all', auth, async (req, res) => {
     res.json(quizzes);
   } catch (error) {
     console.error('Error fetching quizzes:', error);
-    res.status(500).json({ message: 'Error fetching quizzes', error: error.message });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Error fetching quizzes', 
+      error: error.message,
+      // Don't expose stack trace in production
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    });
   }
 });
 
@@ -475,12 +485,16 @@ router.get('/my-attempts', auth, async (req, res) => {
       return res.status(403).json({ message: 'Only students can access this endpoint' });
     }
 
+    console.log('Fetching quiz attempts for student:', req.user._id, req.user.name);
+    
     const attempts = await Attempt.find({ 
       userId: req.user._id,
       status: 'completed' 
     })
       .populate('quizId', 'title description timingMode totalDuration scheduledDate scheduledTime')
       .sort({ submittedAt: -1 });
+
+    console.log('Number of attempts found:', attempts.length);
 
     // Format the response
     const formattedAttempts = attempts.map(attempt => ({
@@ -506,7 +520,13 @@ router.get('/my-attempts', auth, async (req, res) => {
     res.json(formattedAttempts);
   } catch (error) {
     console.error('Error fetching student attempts:', error);
-    res.status(500).json({ message: 'Error fetching attempts', error: error.message });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Error fetching attempts', 
+      error: error.message,
+      // Don't expose stack trace in production
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    });
   }
 });
 

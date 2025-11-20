@@ -8,6 +8,7 @@ function QRScanner({ onClose }) {
   const [scanning, setScanning] = useState(false);
   const scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
+  const isScanningRef = useRef(false); // Track if we're currently scanning
 
   useEffect(() => {
     startScanner();
@@ -17,7 +18,19 @@ function QRScanner({ onClose }) {
   }, []);
 
   const startScanner = async () => {
+    // Prevent multiple scanner instances
+    if (isScanningRef.current) {
+      return;
+    }
+    
     try {
+      isScanningRef.current = true;
+      
+      // Clear any existing scanner
+      if (html5QrCodeRef.current) {
+        await stopScanner();
+      }
+      
       const html5QrCode = new Html5Qrcode("qr-reader");
       html5QrCodeRef.current = html5QrCode;
 
@@ -33,24 +46,34 @@ function QRScanner({ onClose }) {
       setScanning(true);
     } catch (err) {
       console.error('Error starting scanner:', err);
+      isScanningRef.current = false;
       setError('Camera access denied or not available. Please allow camera access.');
     }
   };
 
   const stopScanner = async () => {
-    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-      try {
+    try {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
         await html5QrCodeRef.current.stop();
         html5QrCodeRef.current.clear();
-      } catch (err) {
-        console.error('Error stopping scanner:', err);
       }
+    } catch (err) {
+      console.error('Error stopping scanner:', err);
+    } finally {
+      html5QrCodeRef.current = null;
+      isScanningRef.current = false;
+      setScanning(false);
     }
   };
 
   const onScanSuccess = (decodedText, decodedResult) => {
+    // Prevent multiple scans
+    if (!isScanningRef.current) {
+      return;
+    }
+    
     try {
-      stopScanner();
+      isScanningRef.current = false;
       
       // Extract quiz ID from scanned URL
       const url = new URL(decodedText);
@@ -69,6 +92,7 @@ function QRScanner({ onClose }) {
         setError('Invalid quiz QR code');
         setTimeout(() => {
           setError('');
+          isScanningRef.current = true;
           startScanner();
         }, 2000);
       }
@@ -76,6 +100,7 @@ function QRScanner({ onClose }) {
       setError('Invalid QR code format');
       setTimeout(() => {
         setError('');
+        isScanningRef.current = true;
         startScanner();
       }, 2000);
     }
@@ -96,7 +121,7 @@ function QRScanner({ onClose }) {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-800">Scan Quiz QR Code</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-500 hover:text-gray-700"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
