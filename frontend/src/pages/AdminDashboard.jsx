@@ -152,6 +152,20 @@ function AdminDashboard({ user }) {
     }
   };
 
+  // Function to handle adding a new teacher
+  const handleAddTeacher = () => {
+    resetForm();
+    setActiveTab('teachers');
+    setShowAddForm(true);
+  };
+
+  // Function to handle adding a new student
+  const handleAddStudent = () => {
+    resetForm();
+    setActiveTab('students');
+    setShowAddForm(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -199,20 +213,36 @@ function AdminDashboard({ user }) {
 
         {/* Actions */}
         <div className="flex gap-4 mb-6">
-          <button
-            onClick={() => {
-              setShowAddForm(!showAddForm);
-              if (!showAddForm) {
-                resetForm();
-              }
-            }}
-            className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition font-semibold inline-flex items-center shadow-sm"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            {showAddForm ? 'Cancel' : `Add ${activeTab === 'teachers' ? 'Teacher' : 'Student'}`}
-          </button>
+          {activeTab === 'teachers' ? (
+            <button
+              onClick={handleAddTeacher}
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition font-semibold inline-flex items-center shadow-sm"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Teacher
+            </button>
+          ) : (
+            <button
+              onClick={handleAddStudent}
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition font-semibold inline-flex items-center shadow-sm"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Student
+            </button>
+          )}
+          
+          {showAddForm && (
+            <button
+              onClick={resetForm}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg transition font-semibold inline-flex items-center shadow-sm"
+            >
+              Cancel
+            </button>
+          )}
         </div>
 
         {/* Messages */}
