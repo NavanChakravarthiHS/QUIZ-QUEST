@@ -852,10 +852,16 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
         },
         analytics: {
           totalAttempts: 0,
+          totalStudents: 0,
+          submittedStudents: 0,
+          notSubmittedStudents: 0,
+          passedStudents: 0,
+          failedStudents: 0,
           averageScore: 0,
           highestScore: 0,
           lowestScore: 0,
           completionRate: 0,
+          passRate: 0,
           scoreDistribution: []
         },
         attempts: []
@@ -870,6 +876,23 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
     const lowestScore = Math.min(...scores);
     const completedAttempts = attempts.filter(attempt => attempt.status === 'completed').length;
     const completionRate = (completedAttempts / attempts.length) * 100;
+    
+    // Pass/Fail statistics (assuming 50% is the pass mark)
+    const PASS_THRESHOLD = 50;
+    const passedAttempts = attempts.filter(attempt => {
+      if (attempt.totalScore > 0) {
+        const percentage = (attempt.score / attempt.totalScore) * 100;
+        return percentage >= PASS_THRESHOLD;
+      }
+      return false;
+    }).length;
+    const failedAttempts = completedAttempts - passedAttempts;
+    const passRate = completedAttempts > 0 ? (passedAttempts / completedAttempts) * 100 : 0;
+
+    // Student statistics
+    const totalStudents = attempts.length;
+    const submittedStudents = completedAttempts;
+    const notSubmittedStudents = totalStudents - submittedStudents;
 
     // Score distribution (grouped by ranges)
     const scoreDistribution = [];
@@ -903,10 +926,16 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
       },
       analytics: {
         totalAttempts: attempts.length,
+        totalStudents: totalStudents,
+        submittedStudents: submittedStudents,
+        notSubmittedStudents: notSubmittedStudents,
+        passedStudents: passedAttempts,
+        failedStudents: failedAttempts,
         averageScore: Math.round(averageScore * 100) / 100,
         highestScore: highestScore,
         lowestScore: lowestScore,
         completionRate: Math.round(completionRate * 100) / 100,
+        passRate: Math.round(passRate * 100) / 100,
         scoreDistribution: scoreDistribution
       },
       attempts: attempts.map(attempt => {
@@ -926,6 +955,13 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
           studentEmail = 'N/A';
         }
 
+        // Calculate pass/fail for this attempt
+        let isPassed = false;
+        if (attempt.totalScore > 0 && attempt.status === 'completed') {
+          const percentage = (attempt.score / attempt.totalScore) * 100;
+          isPassed = percentage >= PASS_THRESHOLD;
+        }
+
         return {
           id: attempt._id,
           student: {
@@ -937,7 +973,15 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
           percentage: attempt.totalScore > 0 ? Math.round((attempt.score / attempt.totalScore) * 10000) / 100 : 0,
           submittedAt: attempt.submittedAt,
           timeSpent: attempt.timeSpent,
-          status: attempt.status
+          status: attempt.status,
+          isPassed: isPassed,
+          answers: attempt.answers.map(answer => ({
+            questionId: answer.questionId,
+            selectedOptions: answer.selectedOptions,
+            isCorrect: answer.isCorrect,
+            pointsEarned: answer.pointsEarned,
+            timeSpent: answer.timeSpent
+          }))
         };
       })
     };

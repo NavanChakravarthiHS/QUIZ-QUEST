@@ -109,7 +109,7 @@ function StudentLogin({ onLogin }) {
                   type="text"
                   required
                   value={usn}
-                  onChange={(e) => setUsn(e.target.value)}
+                  onChange={(e) => setUsn(e.target.value.toUpperCase())}
                   className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 py-3 sm:text-sm border-gray-300 rounded-lg border"
                   placeholder="Enter your University Seat Number"
                 />

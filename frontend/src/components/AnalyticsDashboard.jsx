@@ -1,14 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { quizService } from '../services/authService';
 
 function AnalyticsDashboard({ quiz, onClose }) {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [expandedAttempts, setExpandedAttempts] = useState(new Set());
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [quiz._id]);
+  const toggleAttemptExpansion = (attemptId) => {
+    const newExpanded = new Set(expandedAttempts);
+    if (newExpanded.has(attemptId)) {
+      newExpanded.delete(attemptId);
+    } else {
+      newExpanded.add(attemptId);
+    }
+    setExpandedAttempts(newExpanded);
+  };
 
   const fetchAnalytics = async () => {
     try {
@@ -23,6 +30,11 @@ function AnalyticsDashboard({ quiz, onClose }) {
       setLoading(false);
     }
   };
+
+  // Initialize data on component mount
+  useState(() => {
+    fetchAnalytics();
+  }, [quiz._id]);
 
   if (loading) {
     return (
@@ -80,23 +92,35 @@ function AnalyticsDashboard({ quiz, onClose }) {
           </button>
         </div>
 
-        {/* Summary Cards */}
+        {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="text-3xl font-bold">{analytics.totalAttempts}</div>
-            <div className="text-blue-100">Total Attempts</div>
+            <div className="text-3xl font-bold">{analytics.totalStudents}</div>
+            <div className="text-blue-100">Total Students</div>
           </div>
           <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="text-3xl font-bold">{analytics.averageScore.toFixed(1)}</div>
-            <div className="text-green-100">Average Score</div>
+            <div className="text-3xl font-bold">{analytics.submittedStudents}</div>
+            <div className="text-green-100">Submitted</div>
+          </div>
+          <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="text-3xl font-bold">{analytics.notSubmittedStudents}</div>
+            <div className="text-red-100">Not Submitted</div>
           </div>
           <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="text-3xl font-bold">{analytics.highestScore}</div>
-            <div className="text-purple-100">Highest Score</div>
+            <div className="text-3xl font-bold">{analytics.averageScore.toFixed(1)}</div>
+            <div className="text-purple-100">Average Score</div>
           </div>
-          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="text-3xl font-bold">{analytics.completionRate.toFixed(1)}%</div>
-            <div className="text-yellow-100">Completion Rate</div>
+        </div>
+
+        {/* Pass/Fail Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="text-3xl font-bold">{analytics.passedStudents}</div>
+            <div className="text-green-100">Students Passed</div>
+          </div>
+          <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="text-3xl font-bold">{analytics.failedStudents}</div>
+            <div className="text-red-100">Students Failed</div>
           </div>
         </div>
 
@@ -120,7 +144,7 @@ function AnalyticsDashboard({ quiz, onClose }) {
           </div>
         </div>
 
-        {/* Student Attempts */}
+        {/* Student Attempts with Question-wise Analysis */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
           <h3 className="text-xl font-bold text-gray-800 mb-4">Student Attempts ({attempts.length})</h3>
           {attempts.length > 0 ? (
@@ -131,44 +155,110 @@ function AnalyticsDashboard({ quiz, onClose }) {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Spent</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Result</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {attempts.map((attempt, index) => (
-                    <tr key={attempt.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{attempt.student.name}</div>
-                        <div className="text-sm text-gray-500">{attempt.student.email}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {attempt.score} / {attempt.totalScore}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                          ${attempt.percentage >= 75 ? 'bg-green-100 text-green-800' : 
-                            attempt.percentage >= 50 ? 'bg-yellow-100 text-yellow-800' : 
-                            'bg-red-100 text-red-800'}`}>
-                          {attempt.percentage}%
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {Math.floor(attempt.timeSpent / 60)}m {attempt.timeSpent % 60}s
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                          ${attempt.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                            attempt.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' : 
-                            'bg-red-100 text-red-800'}`}>
-                          {attempt.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {attempt.submittedAt ? new Date(attempt.submittedAt).toLocaleString() : 'Not submitted'}
-                      </td>
-                    </tr>
+                    <>
+                      <tr key={attempt.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{attempt.student.name}</div>
+                          <div className="text-sm text-gray-500">{attempt.student.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {attempt.score} / {attempt.totalScore}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${attempt.percentage >= 75 ? 'bg-green-100 text-green-800' : 
+                              attempt.percentage >= 50 ? 'bg-yellow-100 text-yellow-800' : 
+                              'bg-red-100 text-red-800'}`}>
+                            {attempt.percentage}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${attempt.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                              attempt.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' : 
+                              'bg-red-100 text-red-800'}`}>
+                            {attempt.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${attempt.isPassed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {attempt.isPassed ? 'Passed' : 'Failed'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {attempt.submittedAt ? new Date(attempt.submittedAt).toLocaleString() : 'Not submitted'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => toggleAttemptExpansion(attempt.id)}
+                            className="text-blue-600 hover:text-blue-900 font-medium"
+                          >
+                            {expandedAttempts.has(attempt.id) ? 'Hide Details' : 'View Details'}
+                          </button>
+                        </td>
+                      </tr>
+                      {expandedAttempts.has(attempt.id) && (
+                        <tr key={`${attempt.id}-details`}>
+                          <td colSpan="7" className="px-6 py-4 bg-gray-50">
+                            <div className="ml-4">
+                              <h4 className="font-medium text-gray-900 mb-2">Question-wise Analysis</h4>
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                  <thead className="bg-gray-100">
+                                    <tr>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Question</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selected Options</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Result</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Points</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {attempt.answers.map((answer, ansIndex) => {
+                                      // Find the corresponding question in the quiz
+                                      const question = quiz.questions.find(q => q._id === answer.questionId) || 
+                                                      { question: 'Unknown Question', options: [] };
+                                      
+                                      return (
+                                        <tr key={ansIndex} className={ansIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                          <td className="px-4 py-2 text-sm text-gray-900 max-w-xs">
+                                            <div className="truncate" title={question.question}>
+                                              {question.question}
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-2 text-sm text-gray-900">
+                                            {answer.selectedOptions && answer.selectedOptions.length > 0 
+                                              ? answer.selectedOptions.join(', ') 
+                                              : 'No answer selected'}
+                                          </td>
+                                          <td className="px-4 py-2 text-sm">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                              ${answer.isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                              {answer.isCorrect ? 'Correct' : 'Incorrect'}
+                                            </span>
+                                          </td>
+                                          <td className="px-4 py-2 text-sm text-gray-900">
+                                            {answer.pointsEarned} / {question.points || 0}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   ))}
                 </tbody>
               </table>

@@ -720,7 +720,7 @@ function Dashboard({ user }) {
                 </div>
                 
                 <div className="p-5 flex-grow flex flex-col justify-end gap-2">
-                  <div className="flex gap-2">
+                  <div className="quiz-card-buttons flex gap-2">
                     {/* Manual Activation/Deactivation Buttons */}
                     {getQuizStatus(quiz) === 'ongoing' ? (
                       <button
@@ -800,7 +800,7 @@ function Dashboard({ user }) {
         )}
 
         {user.role === 'student' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="quiz-card-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {quizzes.map((quizAttempt, index) => {
               const isAvailable = quizAttempt.status === 'available';
               const isInProgress = quizAttempt.status === 'in-progress';
