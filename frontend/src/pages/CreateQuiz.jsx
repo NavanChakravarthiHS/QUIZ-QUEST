@@ -11,6 +11,7 @@ function CreateQuiz({ user }) {
   const [totalDuration, setTotalDuration] = useState(10); // 10 minutes default for total time mode
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
+  const [activationMode, setActivationMode] = useState('scheduled'); // 'scheduled' or 'manual'
   const [questions, setQuestions] = useState([
     {
       id: `question-${Date.now()}-${Math.random()}`,
@@ -28,7 +29,7 @@ function CreateQuiz({ user }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // Question Bank integration
   const [useQuestionBank, setUseQuestionBank] = useState(false);
   const [subjects, setSubjects] = useState([]);
@@ -199,17 +200,19 @@ function CreateQuiz({ user }) {
       return;
     }
 
-    // Validate scheduled date and time are provided
-    if (!scheduledDate) {
-      setError('Please select a scheduled date for the quiz');
-      setLoading(false);
-      return;
-    }
+    // Validate scheduled date and time are provided when using scheduled mode
+    if (activationMode === 'scheduled') {
+      if (!scheduledDate) {
+        setError('Please select a scheduled date for the quiz');
+        setLoading(false);
+        return;
+      }
 
-    if (!scheduledTime) {
-      setError('Please select a scheduled time for the quiz');
-      setLoading(false);
-      return;
+      if (!scheduledTime) {
+        setError('Please select a scheduled time for the quiz');
+        setLoading(false);
+        return;
+      }
     }
 
     // Validate questions
@@ -243,7 +246,7 @@ function CreateQuiz({ user }) {
       // Convert duration to seconds based on timing mode
       const durationInSeconds = timingMode === 'total' ? totalDuration * 60 : totalDuration;
       
-      const response = await quizService.createQuiz({
+      const quizData = {
         title,
         description,
         questions: questions.map(q => ({
@@ -257,9 +260,14 @@ function CreateQuiz({ user }) {
         })),
         timingMode,
         totalDuration: durationInSeconds,
-        scheduledDate: scheduledDate || null,
-        scheduledTime: scheduledTime || null
-      });
+        // Only include scheduled date/time if using scheduled mode
+        scheduledDate: activationMode === 'scheduled' ? scheduledDate || null : null,
+        scheduledTime: activationMode === 'scheduled' ? scheduledTime || null : null,
+        // Quiz is inactive by default when created, teacher can activate manually
+        isActive: false
+      };
+
+      const response = await quizService.createQuiz(quizData);
 
       setSuccess('Quiz created successfully!');
       setTimeout(() => {
@@ -355,113 +363,164 @@ function CreateQuiz({ user }) {
             <p className="text-sm text-gray-500 mt-1">Provide details about what this quiz covers</p>
           </div>
 
-          {/* Scheduled Date and Time */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Scheduled Date *
+          {/* Activation Mode */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Activation Mode
+            </label>
+            <div className="flex space-x-4">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="activationMode"
+                  value="scheduled"
+                  checked={activationMode === 'scheduled'}
+                  onChange={(e) => setActivationMode(e.target.value)}
+                  className="text-blue-600 focus:ring-blue-500"
+                />
+                <span className="ml-2">Scheduled Activation</span>
               </label>
-              <input
-                type="date"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-              <p className="text-sm text-gray-500 mt-1">Select the date when the quiz will be conducted</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Scheduled Time *
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="activationMode"
+                  value="manual"
+                  checked={activationMode === 'manual'}
+                  onChange={(e) => setActivationMode(e.target.value)}
+                  className="text-blue-600 focus:ring-blue-500"
+                />
+                <span className="ml-2">Manual Activation</span>
               </label>
-              <input
-                type="time"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-              <p className="text-sm text-gray-500 mt-1">Select the time when the quiz will be conducted</p>
             </div>
+            <p className="text-sm text-gray-500 mt-1">
+              {activationMode === 'scheduled' 
+                ? 'Quiz will automatically activate at the scheduled date and time' 
+                : 'Quiz will remain inactive until you manually activate it'}
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Timing Mode *
-              </label>
-              <select
-                value={timingMode}
-                onChange={(e) => setTimingMode(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="total">Total Time (entire quiz)</option>
-                <option value="per-question">Per Question Time</option>
-              </select>
-              <p className="text-sm text-gray-500 mt-1">
-                {timingMode === 'total' 
-                  ? 'Set one timer for the entire quiz' 
-                  : 'Set individual timers for each question'}
-              </p>
+          {/* Scheduled Date and Time (only shown when scheduled mode is selected) */}
+          {activationMode === 'scheduled' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Scheduled Date *
+                </label>
+                <input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+                <p className="text-sm text-gray-500 mt-1">Select the date when the quiz will be conducted</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Scheduled Time *
+                </label>
+                <input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+                <p className="text-sm text-gray-500 mt-1">Select the time when the quiz will be conducted</p>
+              </div>
             </div>
+          )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {timingMode === 'total' ? 'Total Duration (minutes)' : 'Default Per-Question Time (seconds)'}
-              </label>
-              <input
-                type="number"
-                value={totalDuration}
-                onChange={(e) => setTotalDuration(parseInt(e.target.value))}
-                min={timingMode === 'total' ? "1" : "10"}
-                step={timingMode === 'total' ? "1" : "5"}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                {timingMode === 'total' 
-                  ? formatTime(totalDuration, true) 
-                  : formatTime(totalDuration, false)}
-              </p>
+          {/* Quiz Timing Mode */}
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-gray-800 mb-3">Quiz Timing</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Timing Mode
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="timingMode"
+                      value="total"
+                      checked={timingMode === 'total'}
+                      onChange={(e) => setTimingMode(e.target.value)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-gray-700">Total Time for Quiz</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="timingMode"
+                      value="per-question"
+                      checked={timingMode === 'per-question'}
+                      onChange={(e) => setTimingMode(e.target.value)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-gray-700">Time Per Question</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {timingMode === 'total' ? 'Total Duration (minutes)' : 'Time Per Question (seconds)'}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={totalDuration}
+                  onChange={(e) => setTotalDuration(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  {timingMode === 'total' 
+                    ? 'Total time allowed for the entire quiz' 
+                    : 'Time allowed for each individual question'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Question Bank Integration */}
-        <div className="mb-8 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">
-              Use Question Bank
-            </h2>
-            <label className="inline-flex items-center cursor-pointer">
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            Question Bank
+          </h2>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center">
               <input
                 type="checkbox"
+                id="useQuestionBank"
                 checked={useQuestionBank}
                 onChange={(e) => setUseQuestionBank(e.target.checked)}
-                className="sr-only peer"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-            </label>
+              <label htmlFor="useQuestionBank" className="ml-2 block text-sm text-gray-700">
+                Load questions from question bank
+              </label>
+            </div>
           </div>
           
           {useQuestionBank && (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 mb-3">
-                Load questions randomly from your question bank by subject
-              </p>
-              
+            <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Subject *
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subject
                   </label>
                   <select
                     value={selectedSubject}
                     onChange={(e) => setSelectedSubject(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="">-- Choose Subject --</option>
+                    <option value="">Select a subject</option>
                     {subjects.map((subject) => (
                       <option key={subject} value={subject}>
                         {subject}
@@ -471,16 +530,16 @@ function CreateQuiz({ user }) {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Number of Questions
                   </label>
                   <input
                     type="number"
-                    value={questionCount}
-                    onChange={(e) => setQuestionCount(parseInt(e.target.value))}
                     min="1"
                     max="50"
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                    value={questionCount}
+                    onChange={(e) => setQuestionCount(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 
@@ -488,16 +547,12 @@ function CreateQuiz({ user }) {
                   <button
                     type="button"
                     onClick={loadQuestionsFromBank}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition font-medium"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   >
                     Load Questions
                   </button>
                 </div>
               </div>
-              
-              <p className="text-xs text-gray-500 italic">
-                Note: Loading questions will replace any manually added questions below
-              </p>
             </div>
           )}
         </div>
@@ -506,47 +561,54 @@ function CreateQuiz({ user }) {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">
-              Questions
-              <span className="ml-2 bg-gray-100 text-gray-800 text-sm font-medium px-2 py-1 rounded">
-                {questions.length} questions
-              </span>
-              <span className="ml-2 bg-gray-100 text-gray-800 text-sm font-medium px-2 py-1 rounded">
-                {getTotalMarks()} total marks
-              </span>
+              Questions ({questions.length})
             </h2>
+            <button
+              type="button"
+              onClick={addQuestion}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              Add Question
+            </button>
           </div>
-
+          
           <div className="space-y-6">
-            {questions.map((question, qIndex) => (
-              <div key={question.id} className="border border-gray-200 rounded-lg p-5">
+            {questions.map((question, questionIndex) => (
+              <div key={question.id} className="border border-gray-200 rounded-lg p-6 bg-white shadow-sm">
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-lg font-medium text-gray-800">
-                    Question {qIndex + 1}
+                    Question {questionIndex + 1}
                   </h3>
-                  <button
-                    type="button"
-                    onClick={() => removeQuestion(question.id)}
-                    className="text-red-600 hover:text-red-800 text-sm font-medium"
-                    disabled={questions.length <= 1}
-                  >
-                    Remove
-                  </button>
+                  {questions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeQuestion(question.id)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
-
+                
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Question Text *
+                    Question Text
                   </label>
                   <textarea
                     value={question.question}
                     onChange={(e) => updateQuestion(question.id, 'question', e.target.value)}
-                    placeholder="Enter your question here..."
+                    placeholder="Enter your question"
                     rows="2"
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
-
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -561,157 +623,132 @@ function CreateQuiz({ user }) {
                       <option value="multiple">Multiple Choice</option>
                     </select>
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Marks
+                      Points
                     </label>
                     <input
                       type="number"
                       min="1"
-                      max="10"
                       value={question.points}
-                      onChange={(e) => updateQuestion(question.id, 'points', parseInt(e.target.value))}
+                      onChange={(e) => updateQuestion(question.id, 'points', Number(e.target.value))}
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 </div>
-
-                {/* Image Upload Section */}
+                
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Question Image (Optional)
+                    Options
                   </label>
-                  <div className="flex items-center gap-4">
+                  <div className="space-y-3">
+                    {question.options.map((option, optionIndex) => (
+                      <div key={optionIndex} className="flex items-start">
+                        <div className="flex items-center h-5 mt-1">
+                          <input
+                            type={question.type === 'single' ? 'radio' : 'checkbox'}
+                            name={`question-${question.id}-correct`}
+                            checked={option.isCorrect}
+                            onChange={(e) => updateOption(question.id, optionIndex, 'isCorrect', e.target.checked)}
+                            className={`h-4 w-4 ${question.type === 'single' ? 'text-blue-600 focus:ring-blue-500' : 'text-green-600 focus:ring-green-500'} border-gray-300`}
+                          />
+                        </div>
+                        <div className="ml-3 flex-grow">
+                          <input
+                            type="text"
+                            value={option.text}
+                            onChange={(e) => updateOption(question.id, optionIndex, 'text', e.target.value)}
+                            placeholder={`Option ${optionIndex + 1}`}
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                          />
+                        </div>
+                        {question.options.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => removeOption(question.id, optionIndex)}
+                            className="ml-2 text-red-600 hover:text-red-800"
+                          >
+                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => addOption(question.id)}
+                    className="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    <svg className="-ml-1 mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                    Add Option
+                  </button>
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Image (Optional)
+                  </label>
+                  {question.imageUrl ? (
+                    <div className="flex items-center">
+                      <img src={question.imageUrl} alt="Question" className="h-20 w-20 object-cover rounded" />
+                      <button
+                        type="button"
+                        onClick={() => updateQuestion(question.id, 'imageUrl', '')}
+                        className="ml-4 text-red-600 hover:text-red-800"
+                      >
+                        Remove Image
+                      </button>
+                    </div>
+                  ) : (
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleImageUpload(question.id, e.target.files[0])}
-                      className="block w-full text-sm text-gray-500
-                        file:mr-4 file:py-2 file:px-4
-                        file:rounded file:border-0
-                        file:text-sm file:font-medium
-                        file:bg-gray-100 file:text-gray-700
-                        hover:file:bg-gray-200"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     />
-                    {question.imageUrl && (
-                      <button
-                        type="button"
-                        onClick={() => updateQuestion(question.id, 'imageUrl', '')}
-                        className="text-red-600 hover:text-red-800 text-sm font-medium"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                  {question.imageUrl && (
-                    <div className="mt-3">
-                      <img 
-                        src={question.imageUrl} 
-                        alt="Question preview" 
-                        className="max-w-full h-32 object-contain border border-gray-200 rounded"
-                      />
-                    </div>
                   )}
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Answer Options *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => addOption(question.id)}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      Add Option
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {question.options.map((option, optIndex) => (
-                      <div key={optIndex} className="flex items-start">
-                        <div className="flex items-center h-5 mt-1">
-                          <input
-                            type={question.type === 'single' ? 'radio' : 'checkbox'}
-                            name={`question-${qIndex}-correct`}
-                            checked={option.isCorrect}
-                            onChange={(e) => updateOption(question.id, optIndex, 'isCorrect', e.target.checked)}
-                            className={`h-4 w-4 ${question.type === 'single' ? 'text-blue-600' : 'text-purple-600'} rounded focus:ring-blue-500 border-gray-300`}
-                          />
-                        </div>
-                        <div className="ml-3 flex-1">
-                          <input
-                            type="text"
-                            value={option.text}
-                            onChange={(e) => updateOption(question.id, optIndex, 'text', e.target.value)}
-                            placeholder={`Option ${optIndex + 1}`}
-                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeOption(question.id, optIndex)}
-                          className="ml-2 text-red-500 hover:text-red-700"
-                          disabled={question.options.length <= 2}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {question.type === 'single' 
-                      ? 'Select the radio button for the correct answer' 
-                      : 'Select checkboxes for all correct answers'}
-                  </p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Fixed Add Question Button */}
-        <div className="fixed-button-container">
-          <button
-            type="button"
-            onClick={addQuestion}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center"
-          >
-            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Add Question
-          </button>
-        </div>
-
-        {/* Form Actions */}
-        <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={() => navigate('/dashboard')}
-            className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded disabled:opacity-50"
-          >
-            {loading ? (
-              'Creating Quiz...'
-            ) : (
-              'Create Quiz'
-            )}
-          </button>
+        {/* Submit Section */}
+        <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+          <div className="text-lg font-medium text-gray-800">
+            Total Marks: <span className="font-bold">{getTotalMarks()}</span>
+          </div>
+          <div className="flex space-x-3">
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard')}
+              className="px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                loading 
+                  ? 'bg-blue-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+              }`}
+            >
+              {loading ? 'Creating...' : 'Create Quiz'}
+            </button>
+          </div>
         </div>
       </form>
-      </div>
     </div>
-  );
+  </div>
+);
 }
 
 export default CreateQuiz;

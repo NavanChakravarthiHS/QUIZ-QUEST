@@ -18,7 +18,132 @@ function Dashboard({ user }) {
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [filter, setFilter] = useState('all'); // 'all', 'completed', 'upcoming'
+  const [filter, setFilter] = useState('all'); // 'all', 'upcoming', 'ongoing', 'completed'
+
+  // Helper function to determine quiz status
+  const getQuizStatus = (quiz) => {
+    const now = new Date();
+    
+    // If quiz is active, determine if it's ongoing or completed
+    if (quiz.isActive) {
+      // If quiz has a schedule, check if it's within the scheduled time
+      if (quiz.scheduledDate && quiz.scheduledTime) {
+        const scheduledDate = new Date(quiz.scheduledDate);
+        scheduledDate.setHours(0, 0, 0, 0);
+        const today = new Date(now);
+        today.setHours(0, 0, 0, 0);
+        
+        // If scheduled for today
+        if (scheduledDate.getTime() === today.getTime()) {
+          const [scheduledHours, scheduledMinutes] = quiz.scheduledTime.split(':').map(Number);
+          const scheduledDateTime = new Date();
+          scheduledDateTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
+          const endTime = new Date(scheduledDateTime.getTime() + quiz.totalDuration * 60000);
+          
+          // Check if quiz is completed (past end time)
+          if (now > endTime) {
+            return 'completed';
+          }
+          
+          // Quiz is ongoing
+          return 'ongoing';
+        }
+        
+        // If scheduled for a future date, but manually started, it's ongoing
+        if (scheduledDate > today) {
+          return 'ongoing';
+        }
+        
+        // If scheduled for a past date
+        if (scheduledDate < today) {
+          // Check if it's still within the duration
+          const [scheduledHours, scheduledMinutes] = quiz.scheduledTime.split(':').map(Number);
+          const scheduledDateTime = new Date(scheduledDate);
+          scheduledDateTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
+          const endTime = new Date(scheduledDateTime.getTime() + quiz.totalDuration * 60000);
+          
+          // If current time is after end time, it's completed
+          if (now > endTime) {
+            return 'completed';
+          }
+          
+          // Otherwise it's ongoing (manually started past scheduled date)
+          return 'ongoing';
+        }
+      }
+      
+      // Active quiz without schedule is ongoing
+      return 'ongoing';
+    }
+    
+    // If quiz is inactive
+    if (quiz.scheduledDate && quiz.scheduledTime) {
+      const scheduledDate = new Date(quiz.scheduledDate);
+      scheduledDate.setHours(0, 0, 0, 0);
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+      
+      // If scheduled for a future date, it's upcoming
+      if (scheduledDate > today) {
+        return 'upcoming';
+      }
+      
+      // If scheduled for today, check time
+      if (scheduledDate.getTime() === today.getTime()) {
+        const [scheduledHours, scheduledMinutes] = quiz.scheduledTime.split(':').map(Number);
+        const scheduledDateTime = new Date();
+        scheduledDateTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
+        const endTime = new Date(scheduledDateTime.getTime() + quiz.totalDuration * 60000);
+        
+        // If current time is before scheduled time, it's upcoming
+        if (now < scheduledDateTime) {
+          return 'upcoming';
+        }
+        
+        // If current time is after end time, it's completed
+        if (now > endTime) {
+          return 'completed';
+        }
+        
+        // Otherwise it should be ongoing, but since it's inactive, it's upcoming
+        return 'upcoming';
+      }
+      
+      // If scheduled for a past date, check if it's completed
+      if (scheduledDate < today) {
+        // For past date quizzes, calculate end time based on scheduled date
+        const [scheduledHours, scheduledMinutes] = quiz.scheduledTime.split(':').map(Number);
+        const scheduledDateTime = new Date(scheduledDate);
+        scheduledDateTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
+        const endTime = new Date(scheduledDateTime.getTime() + quiz.totalDuration * 60000);
+        
+        // If current time is after end time, it's completed
+        if (now > endTime) {
+          return 'completed';
+        }
+        
+        // Otherwise it's upcoming (but should probably be ongoing if manually started)
+        return 'upcoming';
+      }
+    }
+    
+    // Inactive quiz without schedule is considered upcoming
+    return 'upcoming';
+  };
+
+  // Helper function to get status badge
+  const getQuizStatusBadge = (status) => {
+    switch (status) {
+      case 'upcoming':
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">Upcoming</span>;
+      case 'ongoing':
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Ongoing</span>;
+      case 'completed':
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Completed</span>;
+      default:
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">Unknown</span>;
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -47,6 +172,11 @@ function Dashboard({ user }) {
         throw new Error('No authentication token found. Please log in again.');
       }
       
+      // Check if user has the correct role
+      if (user.role !== 'teacher') {
+        throw new Error('Access denied. Only teachers can view quizzes.');
+      }
+      
       const response = await quizService.getAllQuizzes();
       console.log('Fetched quizzes:', response.data);
       
@@ -68,8 +198,16 @@ function Dashboard({ user }) {
         // Server responded with error status
         if (err.response.status === 401) {
           errorMessage += 'Authentication failed. Please log in again.';
+          // Redirect to login page
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/teacher-login');
         } else if (err.response.status === 403) {
           errorMessage += 'Access denied. You may not have permission to view quizzes.';
+          // Check if user role is correct
+          if (user && user.role !== 'teacher') {
+            errorMessage += ` Your current role is "${user.role}". Only teachers can access this feature.`;
+          }
         } else if (err.response.status === 500) {
           errorMessage += 'Server error. Please try again later.';
         } else {
@@ -100,38 +238,10 @@ function Dashboard({ user }) {
       setFilteredQuizzes(quizzes);
       return;
     }
-
-    const now = new Date();
+    
     const filtered = quizzes.filter(quiz => {
-      // Handle case where scheduledDate might be missing or invalid
-      if (!quiz.scheduledDate) {
-        // For 'upcoming' filter, include quizzes without scheduled date
-        // For 'completed' filter, exclude quizzes without scheduled date
-        return filter === 'upcoming';
-      }
-      
-      // Convert scheduledDate to Date object if it's a string
-      const scheduledDate = new Date(quiz.scheduledDate);
-      
-      // Check if scheduledDate is valid
-      if (isNaN(scheduledDate.getTime())) {
-        return filter === 'upcoming'; // Treat invalid dates as upcoming
-      }
-      
-      const today = new Date(now);
-      today.setHours(0, 0, 0, 0);
-      
-      if (filter === 'completed') {
-        // Quiz is completed if scheduled date is before today
-        scheduledDate.setHours(0, 0, 0, 0);
-        return scheduledDate < today;
-      } else if (filter === 'upcoming') {
-        // Quiz is upcoming if scheduled date is today or in the future
-        scheduledDate.setHours(0, 0, 0, 0);
-        return scheduledDate >= today;
-      }
-      
-      return true;
+      const status = getQuizStatus(quiz);
+      return status === filter;
     });
     
     setFilteredQuizzes(filtered);
@@ -161,6 +271,10 @@ function Dashboard({ user }) {
       if (err.response) {
         if (err.response.status === 401) {
           errorMessage += 'Authentication failed. Please log in again.';
+          // Redirect to login page
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/student-login');
         } else if (err.response.status === 500) {
           errorMessage += 'Server error. Please try again later.';
         } else {
@@ -219,6 +333,195 @@ function Dashboard({ user }) {
     setShowShareModal(true);
   };
 
+  const handleActivateQuiz = async (quizId) => {
+    try {
+      console.log('Activating quiz:', quizId);
+      const response = await quizService.activateQuiz(quizId);
+      console.log('Activation response:', response);
+      
+      // Check if this is an early start warning
+      if (response.data.message === 'early_start_warning') {
+        // Show early start warning modal
+        const scheduledTime = new Date(response.data.scheduledStartTime);
+        const confirm = window.confirm(
+          `This quiz is scheduled to start on ${scheduledTime.toLocaleString()}.\n` +
+          `Do you want to update the start time to the current date and time?`
+        );
+        
+        if (confirm) {
+          // User chose to update start time - activate early
+          const earlyResponse = await quizService.activateQuizEarly(quizId);
+          alert(earlyResponse.data.message);
+          setQuizzes(prevQuizzes => 
+            prevQuizzes.map(quiz => 
+              quiz._id === quizId ? { ...quiz, ...earlyResponse.data.quiz } : quiz
+            )
+          );
+        } else {
+          // User chose to keep original schedule - do nothing
+          alert('Quiz start cancelled. The quiz will start at the scheduled time.');
+          return;
+        }
+      } else {
+        // Normal activation
+        alert(response.data.message);
+        setQuizzes(prevQuizzes => 
+          prevQuizzes.map(quiz => 
+            quiz._id === quizId ? { ...quiz, ...response.data.quiz } : quiz
+          )
+        );
+      }
+      
+      // Reapply filter to ensure the UI updates correctly
+      setTimeout(() => {
+        applyFilter();
+      }, 100);
+    } catch (err) {
+      console.error('Error activating quiz:', err);
+      console.error('Error response:', err.response);
+      
+      // Handle early start warning from error response
+      if (err.response && err.response.data && err.response.data.message === 'early_start_warning') {
+        const scheduledTime = new Date(err.response.data.scheduledStartTime);
+        const confirm = window.confirm(
+          `This quiz is scheduled to start on ${scheduledTime.toLocaleString()}.\n` +
+          `Do you want to update the start time to the current date and time?`
+        );
+        
+        if (confirm) {
+          // User chose to update start time - activate early
+          try {
+            const earlyResponse = await quizService.activateQuizEarly(quizId);
+            alert(earlyResponse.data.message);
+            setQuizzes(prevQuizzes => 
+              prevQuizzes.map(quiz => 
+                quiz._id === quizId ? { ...quiz, ...earlyResponse.data.quiz } : quiz
+              )
+            );
+            
+            // Reapply filter to ensure the UI updates correctly
+            setTimeout(() => {
+              applyFilter();
+            }, 100);
+          } catch (earlyErr) {
+            console.error('Error activating quiz early:', earlyErr);
+            alert(earlyErr.response?.data?.message || earlyErr.message || 'Failed to activate quiz');
+          }
+        } else {
+          // User chose to keep original schedule - do nothing
+          alert('Quiz start cancelled. The quiz will start at the scheduled time.');
+        }
+      } else {
+        alert(err.response?.data?.message || err.message || 'Failed to activate quiz');
+      }
+    }
+  };
+
+  const handleDeactivateQuiz = async (quizId) => {
+    try {
+      console.log('Deactivating quiz:', quizId);
+      const response = await quizService.deactivateQuiz(quizId);
+      console.log('Deactivation response:', response);
+      
+      // Check if this is an early end warning
+      if (response.data.message === 'early_end_warning') {
+        // Show early end warning modal
+        const scheduledTime = new Date(response.data.scheduledEndTime);
+        const confirm = window.confirm(
+          `This quiz is scheduled to end on ${scheduledTime.toLocaleString()}.\n` +
+          `Do you want to update the end time to the current date and time?`
+        );
+        
+        if (confirm) {
+          // User chose to update end time - deactivate early
+          const earlyResponse = await quizService.deactivateQuizEarly(quizId);
+          alert(earlyResponse.data.message);
+          setQuizzes(prevQuizzes => 
+            prevQuizzes.map(quiz => 
+              quiz._id === quizId ? { ...quiz, ...earlyResponse.data.quiz } : quiz
+            )
+          );
+        } else {
+          // User chose to keep original schedule but still end the quiz
+          const earlyResponse = await quizService.deactivateQuizEarly(quizId);
+          alert(earlyResponse.data.message);
+          setQuizzes(prevQuizzes => 
+            prevQuizzes.map(quiz => 
+              quiz._id === quizId ? { ...quiz, ...earlyResponse.data.quiz } : quiz
+            )
+          );
+        }
+      } else {
+        // Normal deactivation
+        alert(response.data.message);
+        setQuizzes(prevQuizzes => 
+          prevQuizzes.map(quiz => 
+            quiz._id === quizId ? { ...quiz, ...response.data.quiz } : quiz
+          )
+        );
+      }
+      
+      // Reapply filter to ensure the UI updates correctly
+      setTimeout(() => {
+        applyFilter();
+      }, 100);
+    } catch (err) {
+      console.error('Error deactivating quiz:', err);
+      console.error('Error response:', err.response);
+      
+      // Handle early end warning from error response
+      if (err.response && err.response.data && err.response.data.message === 'early_end_warning') {
+        const scheduledTime = new Date(err.response.data.scheduledEndTime);
+        const confirm = window.confirm(
+          `This quiz is scheduled to end on ${scheduledTime.toLocaleString()}.\n` +
+          `Do you want to update the end time to the current date and time?`
+        );
+        
+        if (confirm) {
+          // User chose to update end time - deactivate early
+          try {
+            const earlyResponse = await quizService.deactivateQuizEarly(quizId);
+            alert(earlyResponse.data.message);
+            setQuizzes(prevQuizzes => 
+              prevQuizzes.map(quiz => 
+                quiz._id === quizId ? { ...quiz, ...earlyResponse.data.quiz } : quiz
+              )
+            );
+            
+            // Reapply filter to ensure the UI updates correctly
+            setTimeout(() => {
+              applyFilter();
+            }, 100);
+          } catch (earlyErr) {
+            console.error('Error deactivating quiz early:', earlyErr);
+            alert(earlyErr.response?.data?.message || earlyErr.message || 'Failed to deactivate quiz');
+          }
+        } else {
+          // User chose to keep original schedule but still end the quiz
+          try {
+            const earlyResponse = await quizService.deactivateQuizEarly(quizId);
+            alert(earlyResponse.data.message);
+            setQuizzes(prevQuizzes => 
+              prevQuizzes.map(quiz => 
+                quiz._id === quizId ? { ...quiz, ...earlyResponse.data.quiz } : quiz
+              )
+            );
+            
+            // Reapply filter to ensure the UI updates correctly
+            setTimeout(() => {
+              applyFilter();
+            }, 100);
+          } catch (earlyErr) {
+            console.error('Error deactivating quiz early:', earlyErr);
+            alert(earlyErr.response?.data?.message || earlyErr.message || 'Failed to deactivate quiz');
+          }
+        }
+      } else {
+        alert(err.response?.data?.message || err.message || 'Failed to deactivate quiz');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -231,6 +534,15 @@ function Dashboard({ user }) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-xl">User not authenticated. Please log in.</div>
+      </div>
+    );
+  }
+
+  // Check if user has the correct role for their dashboard
+  if (user.role !== 'teacher' && user.role !== 'student') {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-xl">Invalid user role. Please contact support.</div>
       </div>
     );
   }
@@ -275,7 +587,7 @@ function Dashboard({ user }) {
         {user.role === 'teacher' && (
           <div className="flex gap-4 mb-6 flex-wrap">
             <div className="flex items-center">
-              <span className="mr-2 text-gray-700 font-medium">Filter:</span>
+              <span className="mr-2 text-gray-700 font-medium">Status:</span>
               <div className="flex rounded-md shadow-sm">
                 <button
                   onClick={() => setFilter('all')}
@@ -285,27 +597,37 @@ function Dashboard({ user }) {
                       : 'bg-white text-gray-700 hover:bg-gray-50'
                   } border border-gray-300 focus:outline-none`}
                 >
-                  All Quizzes
+                  All
                 </button>
                 <button
-                  onClick={() => setFilter('completed')}
+                  onClick={() => setFilter('upcoming')}
                   className={`px-4 py-2 text-sm font-medium ${
-                    filter === 'completed'
+                    filter === 'upcoming'
                       ? 'bg-blue-600 text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
                   } border-t border-b border-gray-300 focus:outline-none`}
                 >
-                  Completed
+                  Upcoming
                 </button>
                 <button
-                  onClick={() => setFilter('upcoming')}
+                  onClick={() => setFilter('ongoing')}
+                  className={`px-4 py-2 text-sm font-medium ${
+                    filter === 'ongoing'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  } border-t border-b border-gray-300 focus:outline-none`}
+                >
+                  Ongoing
+                </button>
+                <button
+                  onClick={() => setFilter('completed')}
                   className={`px-4 py-2 text-sm font-medium rounded-r-md ${
-                    filter === 'upcoming'
+                    filter === 'completed'
                       ? 'bg-blue-600 text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
                   } border border-gray-300 focus:outline-none`}
                 >
-                  Upcoming
+                  Completed
                 </button>
               </div>
             </div>
@@ -351,16 +673,14 @@ function Dashboard({ user }) {
                 <div className="p-5 border-b border-gray-100">
                   <div className="flex justify-between items-start">
                     <h3 className="text-xl font-semibold text-gray-800 mb-2">{quiz.title}</h3>
-                    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                      Active
-                    </span>
+                    {getQuizStatusBadge(getQuizStatus(quiz))}
                   </div>
                   <p className="text-gray-600 text-sm mb-4">{quiz.description || 'No description provided'}</p>
                   
                   <div className="space-y-2">
                     <div className="flex items-center text-sm text-gray-600">
                       <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       <span className="font-medium">Scheduled:</span> 
                       {quiz.scheduledDate ? (
@@ -401,14 +721,48 @@ function Dashboard({ user }) {
                 
                 <div className="p-5 flex-grow flex flex-col justify-end gap-2">
                   <div className="flex gap-2">
+                    {/* Manual Activation/Deactivation Buttons */}
+                    {getQuizStatus(quiz) === 'ongoing' ? (
+                      <button
+                        onClick={() => handleDeactivateQuiz(quiz._id)}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm font-medium transition flex items-center justify-center"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                        </svg>
+                        End Quiz
+                      </button>
+                    ) : getQuizStatus(quiz) === 'completed' ? (
+                      <button
+                        onClick={() => handleViewAnalytics(quiz)}
+                        className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-sm font-medium transition flex items-center justify-center"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        View Analysis
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleActivateQuiz(quiz._id)}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm font-medium transition flex items-center justify-center"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.01M15 10h1.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Start Quiz
+                      </button>
+                    )}
+                    
                     <button
                       onClick={() => navigate(`/edit-quiz/${quiz._id}`)}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-medium transition flex items-center justify-center"
+                      className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition flex items-center justify-center"
+                      title="Edit Quiz"
                     >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                      Edit
                     </button>
                     <button
                       onClick={() => handleShareQuiz(quiz)}

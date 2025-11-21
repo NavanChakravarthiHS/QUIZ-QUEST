@@ -20,6 +20,23 @@ api.interceptors.request.use((config) => {
   return config;
 });     
 
+// Add response interceptor to handle errors consistently
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Log the error for debugging
+    console.error('API Error:', error);
+    
+    // If the error has the new format, return it as is
+    if (error.response && error.response.data && typeof error.response.data.success !== 'undefined') {
+      return Promise.reject(error);
+    }
+    
+    // For other errors, maintain backward compatibility
+    return Promise.reject(error);
+  }
+);
+
 // Auth endpoints
 export const authService = {
   register: (userData) => api.post('/api/auth/register', userData),
@@ -38,11 +55,19 @@ export const quizService = {
   deleteQuiz: (id) => api.delete(`/api/quiz/${id}`),
   joinQuiz: (quizId) => api.get(`/api/quiz/join/${quizId}`),
   submitQuiz: (submissionData) => api.post('/api/quiz/submit', submissionData),
-  getQuizResult: (attemptId) => api.get(`/api/quiz/result/${attemptId}`),
+  getResult: (attemptId) => api.get(`/api/quiz/result/${attemptId}`), // Added missing getResult function
+  getQuizResult: (attemptId) => api.get(`/api/quiz/result/${attemptId}`), // Alias for getResult
   getQuizAnalytics: (quizId) => api.get(`/api/quiz/analytics/${quizId}`),
   // New endpoint for QR code students
   getQuizForAttempt: (attemptId) => api.get(`/api/quiz/attempt/${attemptId}`),
-  studentAccess: (quizId, studentData) => api.post(`/api/quiz/student-access/${quizId}`, studentData)
+  studentAccess: (quizId, studentData) => api.post(`/api/quiz/student-access/${quizId}`, studentData),
+  validateAccessKey: (quizId, data) => api.post(`/api/quiz/validate-access-key/${quizId}`, data),
+  // Manual activation/deactivation endpoints
+  activateQuiz: (id) => api.put(`/api/quiz/${id}/activate`),
+  deactivateQuiz: (id) => api.put(`/api/quiz/${id}/deactivate`),
+  // Early start/end handling endpoints
+  activateQuizEarly: (id) => api.put(`/api/quiz/${id}/activate-early`),
+  deactivateQuizEarly: (id) => api.put(`/api/quiz/${id}/deactivate-early`)
 };
 
 // Question Bank endpoints

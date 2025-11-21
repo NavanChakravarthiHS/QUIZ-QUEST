@@ -111,8 +111,8 @@ function QuizPage({ user }) {
         }
         setStartTime(Date.now());
         setQuestionStartTime(Date.now());
-      } else if (user) {
-        // Authenticated user
+      } else if (user && user.role === 'student') {
+        // Authenticated student user
         const response = await quizService.joinQuiz(quizId);
         console.log('Join quiz response:', response.data);
         setQuiz(response.data.quiz);
@@ -123,6 +123,22 @@ function QuizPage({ user }) {
           setTimeLeft(response.data.quiz.totalDuration);
         } else {
           setTimeLeft(response.data.quiz.totalDuration);
+        }
+        setStartTime(Date.now());
+        setQuestionStartTime(Date.now());
+      } else if (user && user.role === 'teacher') {
+        // Teacher accessing the quiz (for preview/testing)
+        const response = await quizService.getQuiz(quizId);
+        console.log('Teacher access response:', response.data);
+        setQuiz(response.data);
+        // Teachers don't have attempts, so we set a dummy attempt ID
+        setAttemptId('teacher-preview');
+        
+        // Start timer based on quiz timing mode
+        if (response.data.timingMode === 'total') {
+          setTimeLeft(response.data.totalDuration);
+        } else {
+          setTimeLeft(response.data.totalDuration);
         }
         setStartTime(Date.now());
         setQuestionStartTime(Date.now());
@@ -219,6 +235,12 @@ function QuizPage({ user }) {
   };
 
   const handleSubmit = async (isAutoSubmit = false) => {
+    // Prevent teachers from submitting quizzes
+    if (user && user.role === 'teacher') {
+      setError('Teachers cannot submit quizzes. This is a preview mode only.');
+      return;
+    }
+    
     if (isSubmitting) return; // Prevent double submission
     setIsSubmitting(true);
     

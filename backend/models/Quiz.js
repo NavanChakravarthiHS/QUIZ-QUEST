@@ -73,6 +73,24 @@ const quizSchema = new mongoose.Schema({
     type: String,
     unique: true,
     default: null
+  },
+  // Add actual start/end timestamps
+  actualStartTime: {
+    type: Date,
+    default: null
+  },
+  actualEndTime: {
+    type: Date,
+    default: null
+  },
+  // Track if early start/end occurred
+  earlyStart: {
+    type: Boolean,
+    default: false
+  },
+  earlyEnd: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true,

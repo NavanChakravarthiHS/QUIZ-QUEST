@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 
-function QRScanner({ onClose }) {
+function QRScanner({ isOpen, onClose }) {
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -11,11 +11,13 @@ function QRScanner({ onClose }) {
   const isScanningRef = useRef(false); // Track if we're currently scanning
 
   useEffect(() => {
-    startScanner();
+    if (isOpen) {
+      startScanner();
+    }
     return () => {
       stopScanner();
     };
-  }, []);
+  }, [isOpen]);
 
   const startScanner = async () => {
     // Prevent multiple scanner instances
@@ -82,10 +84,12 @@ function QRScanner({ onClose }) {
       // Check if it's a student-access URL
       if (path.includes('/student-access/')) {
         const quizId = path.split('/student-access/')[1];
+        stopScanner();
         navigate(`/student-access/${quizId}`);
         onClose();
       } else if (path.includes('/quiz/')) {
         const quizId = path.split('/quiz/')[1];
+        stopScanner();
         navigate(`/quiz/${quizId}`);
         onClose();
       } else {
@@ -93,7 +97,6 @@ function QRScanner({ onClose }) {
         setTimeout(() => {
           setError('');
           isScanningRef.current = true;
-          startScanner();
         }, 2000);
       }
     } catch (err) {
@@ -101,7 +104,6 @@ function QRScanner({ onClose }) {
       setTimeout(() => {
         setError('');
         isScanningRef.current = true;
-        startScanner();
       }, 2000);
     }
   };
@@ -114,6 +116,10 @@ function QRScanner({ onClose }) {
     await stopScanner();
     onClose();
   };
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">

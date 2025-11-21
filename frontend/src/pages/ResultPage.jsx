@@ -8,6 +8,7 @@ function ResultPage({ user }) {
   
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   
   useEffect(() => {
     loadResult();
@@ -15,11 +16,33 @@ function ResultPage({ user }) {
   
   const loadResult = async () => {
     try {
-      const data = await quizService.getResult(attemptId);
-      setResult(data);
+      console.log('Loading result for attempt ID:', attemptId);
+      
+      if (!attemptId) {
+        throw new Error('No attempt ID provided');
+      }
+      
+      const response = await quizService.getResult(attemptId);
+      console.log('Result data received:', response.data);
+      
+      if (!response.data) {
+        throw new Error('No result data received from server');
+      }
+      
+      setResult(response.data);
+      setError('');
     } catch (err) {
-      alert('Failed to load result');
-      navigate('/dashboard');
+      console.error('Failed to load result:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to load result';
+      setError(errorMessage);
+      
+      // Show alert with specific error message
+      alert(`Failed to load result: ${errorMessage}`);
+      
+      // Navigate to dashboard after a short delay to let user see the alert
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
     } finally {
       setLoading(false);
     }
@@ -33,13 +56,54 @@ function ResultPage({ user }) {
     );
   }
   
-  if (!result) return null;
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Result</h1>
+          <p className="text-gray-700 mb-6">{error}</p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-semibold"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!result) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">No Result Data</h1>
+          <p className="text-gray-700 mb-6">No result data available for this attempt.</p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-semibold"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   const percentage = result.percentage;
+  const isPass = percentage >= 40; // Assuming 40% is the pass mark
   const getGradeColor = () => {
     if (percentage >= 80) return 'text-green-600';
     if (percentage >= 60) return 'text-yellow-600';
     return 'text-red-600';
+  };
+  
+  const getStatusColor = () => {
+    return isPass ? 'text-green-600' : 'text-red-600';
+  };
+  
+  const getStatusText = () => {
+    return isPass ? 'PASS' : 'FAIL';
   };
   
   return (
@@ -57,6 +121,29 @@ function ResultPage({ user }) {
           <div className="text-center text-xl">
             <p>Your Score: {result.score} / {result.totalScore}</p>
           </div>
+          <div className={`text-center text-2xl font-bold mt-4 ${getStatusColor()}`}>
+            {getStatusText()}
+          </div>
+        </div>
+        
+        {/* Summary Statistics - Always visible to students and teachers */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <p className="text-blue-600 font-semibold">Total Questions</p>
+            <p className="text-2xl font-bold text-gray-800">{result.totalQuestions}</p>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <p className="text-green-600 font-semibold">Correct Answers</p>
+            <p className="text-2xl font-bold text-gray-800">{result.correctAnswers}</p>
+          </div>
+          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+            <p className="text-red-600 font-semibold">Wrong Answers</p>
+            <p className="text-2xl font-bold text-gray-800">{result.wrongAnswers}</p>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <p className="text-purple-600 font-semibold">Total Marks</p>
+            <p className="text-2xl font-bold text-gray-800">{result.totalScore}</p>
+          </div>
         </div>
         
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -71,65 +158,68 @@ function ResultPage({ user }) {
             </p>
           </div>
         </div>
-      </div>
-      
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Question Details</h2>
-        <div className="space-y-6">
-          {result.answers.map((answer, index) => (
-            <div
-              key={index}
-              className={`p-6 rounded-lg border-2 ${
-                answer.isCorrect
-                  ? 'border-green-500 bg-green-50'
-                  : 'border-red-500 bg-red-50'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Question {index + 1}
-                </h3>
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  answer.isCorrect
-                    ? 'bg-green-200 text-green-800'
-                    : 'bg-red-200 text-red-800'
-                }`}>
-                  {answer.isCorrect ? '✓ Correct' : '✗ Incorrect'}
-                </span>
-              </div>
-              
-              <p className="text-gray-700 mb-3">{answer.question}</p>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="font-semibold text-gray-600 mb-2">Your Answer:</p>
-                  {answer.selectedOptions.length > 0 ? (
-                    <ul className="list-disc list-inside text-gray-700">
-                      {answer.selectedOptions.map((opt, i) => (
-                        <li key={i}>{opt}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-red-600">No answer provided</p>
-                  )}
+        
+        {/* Question details - Only visible to teachers */}
+        {user && user.role === 'teacher' && (
+          <div className="bg-white rounded-lg shadow-lg p-8 mt-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Question Details</h2>
+            <div className="space-y-6">
+              {result.answers.map((answer, index) => (
+                <div
+                  key={index}
+                  className={`p-6 rounded-lg border-2 ${
+                    answer.isCorrect
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-red-500 bg-red-50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Question {index + 1}
+                    </h3>
+                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                      answer.isCorrect
+                        ? 'bg-green-200 text-green-800'
+                        : 'bg-red-200 text-red-800'
+                    }`}>
+                      {answer.isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                    </span>
+                  </div>
+                  
+                  <p className="text-gray-700 mb-3">{answer.question}</p>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="font-semibold text-gray-600 mb-2">Your Answer:</p>
+                      {answer.selectedOptions.length > 0 ? (
+                        <ul className="list-disc list-inside text-gray-700">
+                          {answer.selectedOptions.map((opt, i) => (
+                            <li key={i}>{opt}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-red-600">No answer provided</p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <p className="font-semibold text-gray-600 mb-2">Correct Answer:</p>
+                      <ul className="list-disc list-inside text-green-700">
+                        {answer.correctOptions.map((opt, i) => (
+                          <li key={i}>{opt}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <p className="mt-3 text-gray-600">
+                    Marks: {answer.pointsEarned} / {answer.totalPoints}
+                  </p>
                 </div>
-                
-                <div>
-                  <p className="font-semibold text-gray-600 mb-2">Correct Answer:</p>
-                  <ul className="list-disc list-inside text-green-700">
-                    {answer.correctOptions.map((opt, i) => (
-                      <li key={i}>{opt}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-              
-              <p className="mt-3 text-gray-600">
-                Marks: {answer.pointsEarned} / {answer.totalPoints}
-              </p>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
       
       <button
@@ -143,4 +233,3 @@ function ResultPage({ user }) {
 }
 
 export default ResultPage;
-

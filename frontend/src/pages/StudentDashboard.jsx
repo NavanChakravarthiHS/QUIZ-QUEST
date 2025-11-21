@@ -4,6 +4,13 @@ import { quizService } from '../services/authService';
 import QRScanner from '../components/QRScanner';
 
 function StudentDashboard({ user }) {
+  // Redirect if user is not a student
+  if (user && user.role !== 'student') {
+    // This should never happen due to route protection, but just in case
+    window.location.href = '/dashboard';
+    return null;
+  }
+  
   const navigate = useNavigate();
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,33 +18,14 @@ function StudentDashboard({ user }) {
   const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
-    // Check for pending quiz access from student access portal
-    const checkPendingQuizAccess = async () => {
-      const pendingQuizAccessInfo = localStorage.getItem('pendingQuizAccessInfo');
-      if (pendingQuizAccessInfo) {
-        try {
-          const { quizId, attemptId } = JSON.parse(pendingQuizAccessInfo);
-          
-          // Remove pending quiz access info
-          localStorage.removeItem('pendingQuizAccessInfo');
-          
-          // Navigate to quiz page with attempt ID as query parameter
-          navigate(`/quiz/${quizId}?attemptId=${attemptId}`);
-          return;
-        } catch (err) {
-          console.error('Error accessing pending quiz:', err);
-          // Remove pending quiz access info if there's an error
-          localStorage.removeItem('pendingQuizAccessInfo');
-        }
-      }
-      
-      // Check for pending quiz access from QR code (existing logic)
-      const pendingQuizAccess = localStorage.getItem('pendingQuizAccess');
-      if (pendingQuizAccess) {
-        try {
-          const { quizId, usn, password, accessKey } = JSON.parse(pendingQuizAccess);
-          
-          // Access the quiz
+    // Check for pending quiz access from QR code
+    const pendingQuizAccess = localStorage.getItem('pendingQuizAccess');
+    if (pendingQuizAccess) {
+      try {
+        const { quizId, usn, password, accessKey } = JSON.parse(pendingQuizAccess);
+        
+        // Access the quiz
+        const accessQuiz = async () => {
           const response = await quizService.studentAccess(quizId, {
             usn,
             password,
@@ -54,29 +42,50 @@ function StudentDashboard({ user }) {
           
           // Navigate to quiz page with attempt ID as query parameter
           navigate(`/quiz/${quizId}?attemptId=${response.data.attemptId}`);
-          return;
-        } catch (err) {
-          console.error('Error accessing pending quiz:', err);
-          // Remove pending quiz access if there's an error
-          localStorage.removeItem('pendingQuizAccess');
-        }
+        };
+        
+        accessQuiz();
+        return;
+      } catch (err) {
+        console.error('Error accessing pending quiz:', err);
+        // Remove pending quiz access if there's an error
+        localStorage.removeItem('pendingQuizAccess');
       }
-      
-      // If no pending quiz access, fetch attempts as usual
-      fetchMyAttempts();
-    };
+    }
     
-    checkPendingQuizAccess();
+    // If no pending quiz access, fetch attempts as usual
+    fetchMyAttempts();
   }, []);
 
   const fetchMyAttempts = async () => {
     try {
-      const response = await quizService.getMyAttempts();
-      setAttempts(response.data);
+      setLoading(true);
       setError('');
+      
+      const response = await quizService.getMyAttempts();
+      const attemptData = response.data || [];
+      setAttempts(attemptData);
     } catch (err) {
       console.error('Failed to load attempts:', err);
-      setError('Failed to load quiz history: ' + (err.response?.data?.message || err.message || 'Unknown error'));
+      
+      // More detailed error messaging
+      let errorMessage = 'Failed to load quiz history. ';
+      
+      if (err.response) {
+        if (err.response.status === 401) {
+          errorMessage += 'Authentication failed. Please log in again.';
+        } else if (err.response.status === 500) {
+          errorMessage += 'Server error. Please try again later.';
+        } else {
+          errorMessage += err.response.data?.message || 'Unknown server error.';
+        }
+      } else if (err.request) {
+        errorMessage += 'Unable to connect to the server. Please check your connection and try again.';
+      } else {
+        errorMessage += err.message || 'Unknown error occurred.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -85,29 +94,26 @@ function StudentDashboard({ user }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-xl">Loading your quiz history...</div>
+        <div className="text-xl">Loading quiz history...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Section */}
         <div className="mb-8">
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
-            <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">My Quiz Dashboard</h1>
-                <p className="text-gray-600">View your past quiz attempts and results</p>
-              </div>
-              {user && (
-                <div className="text-right bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <p className="text-sm text-gray-600 mb-1">Student</p>
-                  <p className="text-lg font-semibold text-gray-800">{user.name}</p>
-                </div>
-              )}
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">My Quiz History</h1>
+              <p className="text-gray-600">View your past quiz attempts and results</p>
             </div>
+            {user && (
+              <div className="text-right bg-green-50 p-4 rounded-lg border border-green-200">
+                <p className="text-sm text-gray-600 mb-1">Student</p>
+                <p className="text-lg font-semibold text-gray-800">{user.name}</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -156,12 +162,8 @@ function StudentDashboard({ user }) {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm">Average Score</p>
-                  <p className="text-2xl font-bold text-gray-800">
-                    {attempts.length > 0 
-                      ? Math.round(attempts.reduce((sum, a) => sum + a.percentage, 0) / attempts.length) 
-                      : 0}%
-                  </p>
+                  <p className="text-gray-600 text-sm">Completed</p>
+                  <p className="text-2xl font-bold text-gray-800">{attempts.filter(a => a.status === 'completed').length}</p>
                 </div>
               </div>
             </div>
@@ -170,13 +172,15 @@ function StudentDashboard({ user }) {
               <div className="flex items-center">
                 <div className="bg-yellow-100 rounded-full p-3 mr-4">
                   <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm">Best Score</p>
+                  <p className="text-gray-600 text-sm">Avg. Score</p>
                   <p className="text-2xl font-bold text-gray-800">
-                    {attempts.length > 0 ? Math.max(...attempts.map(a => a.percentage)) : 0}%
+                    {attempts.length > 0 
+                      ? Math.round(attempts.reduce((sum, attempt) => sum + (attempt.percentage || 0), 0) / attempts.length) 
+                      : 0}%
                   </p>
                 </div>
               </div>
@@ -186,15 +190,15 @@ function StudentDashboard({ user }) {
               <div className="flex items-center">
                 <div className="bg-purple-100 rounded-full p-3 mr-4">
                   <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm">Total Time</p>
+                  <p className="text-gray-600 text-sm">Best Score</p>
                   <p className="text-2xl font-bold text-gray-800">
                     {attempts.length > 0 
-                      ? Math.round(attempts.reduce((sum, a) => sum + (a.timeSpent || 0), 0) / 60) 
-                      : 0}m
+                      ? Math.max(...attempts.map(a => a.percentage || 0)) 
+                      : 0}%
                   </p>
                 </div>
               </div>
@@ -202,64 +206,113 @@ function StudentDashboard({ user }) {
           </div>
         )}
 
-        {/* Quiz History */}
+        {/* Quiz Attempts List */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-xl font-semibold text-gray-800">Quiz History</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Quiz Attempts</h2>
           </div>
 
           {attempts.length === 0 ? (
-            <div className="p-8 text-center">
+            <div className="text-center py-12">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
                 <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-medium text-gray-800 mb-2">No Quiz Attempts Yet</h3>
-              <p className="text-gray-600 mb-6">Start by scanning a QR code or joining a quiz through the link provided by your teacher</p>
-              {/* Removed the duplicate Scan QR Code button here to prevent double scanner */}
+              <h3 className="text-xl font-medium text-gray-800 mb-2">No quiz attempts yet</h3>
+              <p className="text-gray-600 mb-6">Scan a QR code to join a quiz and get started!</p>
+              <button
+                onClick={() => setShowScanner(true)}
+                className="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg transition font-medium"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                Scan QR Code
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-800">Quiz Title</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-800">Score</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-800">Percentage</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-800">Time Spent</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-800">Submitted On</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Quiz
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Score
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {attempts.map((attempt, index) => (
-                    <tr key={attempt.attemptId} className="border-b border-gray-200 hover:bg-gray-50 transition">
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="font-medium text-gray-800">{attempt.quiz.title}</p>
-                          <p className="text-sm text-gray-500">{attempt.quiz.description}</p>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {attempts.map((attempt) => (
+                    <tr key={attempt.attemptId} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{attempt.quiz.title}</div>
+                        <div className="text-sm text-gray-500">{attempt.quiz.description || 'No description'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {attempt.submittedAt 
+                            ? new Date(attempt.submittedAt).toLocaleDateString() 
+                            : 'Not completed'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-800 font-medium">
-                        {attempt.score} / {attempt.totalScore}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {attempt.score !== null ? (
+                          <div className="text-sm text-gray-900">
+                            <span className="font-medium">{attempt.score}</span>
+                            <span className="text-gray-500">/{attempt.totalScore}</span>
+                            <span className="ml-2 font-semibold">({attempt.percentage}%)</span>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500">Not scored</div>
+                        )}
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold">
-                        <span className={`px-3 py-1 rounded-full text-white ${
-                          attempt.percentage >= 75 ? 'bg-green-500' :
-                          attempt.percentage >= 50 ? 'bg-yellow-500' :
-                          'bg-red-500'
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          attempt.status === 'completed' 
+                            ? 'bg-green-100 text-green-800' 
+                            : attempt.status === 'in-progress' 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {attempt.percentage}%
+                          {attempt.status === 'completed' ? 'Completed' : 
+                           attempt.status === 'in-progress' ? 'In Progress' : 'Available'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        {attempt.timeSpent ? Math.round(attempt.timeSpent / 60) : 0} min
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {new Date(attempt.submittedAt).toLocaleDateString()} <br />
-                        <span className="text-xs text-gray-500">
-                          {new Date(attempt.submittedAt).toLocaleTimeString()}
-                        </span>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        {attempt.status === 'completed' ? (
+                          <button
+                            onClick={() => navigate(`/result/${attempt.attemptId}`)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            View Results
+                          </button>
+                        ) : attempt.status === 'in-progress' ? (
+                          <button
+                            onClick={() => navigate(`/quiz/${attempt.quiz._id}?attemptId=${attempt.attemptId}`)}
+                            className="text-green-600 hover:text-green-900"
+                          >
+                            Continue
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => navigate(`/quiz/${attempt.quiz._id}`)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            Start Quiz
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -269,10 +322,10 @@ function StudentDashboard({ user }) {
           )}
         </div>
 
-        {/* QR Scanner Modal - Single instance */}
-        {showScanner && (
-          <QRScanner onClose={() => setShowScanner(false)} />
-        )}
+        <QRScanner 
+          isOpen={showScanner} 
+          onClose={() => setShowScanner(false)} 
+        />
       </div>
     </div>
   );

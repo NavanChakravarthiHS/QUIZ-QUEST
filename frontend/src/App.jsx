@@ -15,6 +15,8 @@ import CreateQuiz from './pages/CreateQuiz';
 import EditQuiz from './pages/EditQuiz';
 import QuestionBank from './pages/QuestionBank';
 import StudentAccess from './components/StudentAccess';
+import QuizNotStarted from './pages/QuizNotStarted';
+import QuizEnded from './pages/QuizEnded';
 import Navbar from './components/Navbar';
 import { authService } from './services/authService';
 
@@ -85,6 +87,8 @@ function App() {
           <Route path="/edit-quiz/:quizId" element={user?.role === 'teacher' ? <EditQuiz user={user} /> : <Navigate to="/dashboard" />} />
           <Route path="/quiz/:quizId" element={<QuizPage user={user} />} />
           <Route path="/student-access/:quizId" element={<StudentAccess />} />
+          <Route path="/quiz-not-started/:quizId" element={<QuizNotStarted />} />
+          <Route path="/quiz-ended/:quizId" element={<QuizEnded />} />
           <Route path="/result/:attemptId" element={<ResultPage user={user} />} />
         </Routes>
       </div>

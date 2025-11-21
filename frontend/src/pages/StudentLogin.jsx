@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../services/authService';
 
 function StudentLogin({ onLogin }) {
@@ -9,6 +9,7 @@ function StudentLogin({ onLogin }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,7 +29,18 @@ function StudentLogin({ onLogin }) {
       }
       
       onLogin(response.data.user, response.data.token);
-      navigate('/dashboard');
+      
+      // Check if we need to redirect back to quiz access
+      const returnTo = searchParams.get('returnTo');
+      if (returnTo === 'quiz-access') {
+        // Redirect back to student access with login success flag
+        navigate('/student-access', { 
+          state: { loginSuccess: true },
+          replace: true
+        });
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       console.error('Login error:', err);
       // Provide more specific error messages

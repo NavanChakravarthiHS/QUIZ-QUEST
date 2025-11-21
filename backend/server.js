@@ -8,15 +8,14 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
 // Import routes
 const authRoutes = require('./routes/auth');
 const quizRoutes = require('./routes/quiz');
 const questionBankRoutes = require('./routes/questionBank');
 const adminRoutes = require('./routes/admin');
+
+// Import scheduler
+const { startQuizScheduler } = require('./jobs/quizScheduler');
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quiz-platform', {
@@ -25,6 +24,10 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quiz-plat
 })
 .then(() => console.log('Connected to MongoDB'))
 .catch(err => console.error('MongoDB connection error:', err));
+
+// Middleware
+app.use(cors());
+app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -38,7 +41,28 @@ app.get('/api/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5004;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
 
+// Function to start server with port fallback
+const startServer = (port) => {
+  const server = app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    
+    // Start the quiz scheduler
+    startQuizScheduler();
+  });
+  
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`Port ${port} is already in use, trying ${port + 1}...`);
+      startServer(port + 1);
+    } else {
+      console.error('Server error:', err);
+    }
+  });
+  
+  return server;
+};
+
+const server = startServer(PORT);
+
+module.exports = server;
