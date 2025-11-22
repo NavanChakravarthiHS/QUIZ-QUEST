@@ -1066,6 +1066,21 @@ router.get('/details/:quizId', optionalAuth, async (req, res) => {
     
     // Check if quiz is active
     if (!quiz.isActive) {
+      // Check if quiz has actually ended (has an actualEndTime)
+      if (quiz.actualEndTime && new Date(quiz.actualEndTime) < new Date()) {
+        return res.status(400).json({ 
+          message: `The quiz '${quiz.title}' has ended.`,
+          subtitle: 'This quiz is no longer accessible.',
+          status: 'ended',
+          title: quiz.title,
+          timingMode: quiz.timingMode,
+          totalDuration: quiz.totalDuration,
+          questionsCount: quiz.questions.length,
+          scheduledDate: quiz.scheduledDate,
+          scheduledTime: quiz.scheduledTime
+        });
+      }
+      
       // Check if quiz is manually scheduled (no scheduled date/time)
       if (!quiz.scheduledDate && !quiz.scheduledTime) {
         return res.status(400).json({ 
