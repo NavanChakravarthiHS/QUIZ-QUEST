@@ -53,8 +53,14 @@ const startServer = (port) => {
   
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      console.log(`Port ${port} is already in use, trying ${port + 1}...`);
-      startServer(port + 1);
+      const nextPort = port + 1;
+      // Check if the next port is still valid (less than 65536)
+      if (nextPort < 65536) {
+        console.log(`Port ${port} is already in use, trying ${nextPort}...`);
+        startServer(nextPort);
+      } else {
+        console.error('No available ports found');
+      }
     } else {
       console.error('Server error:', err);
     }

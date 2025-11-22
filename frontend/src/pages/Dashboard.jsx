@@ -326,13 +326,34 @@ function Dashboard({ user }) {
     if (!quizToDelete) return;
 
     try {
+      console.log('Deleting quiz with ID:', quizToDelete._id);
       await quizService.deleteQuiz(quizToDelete._id);
       alert('Quiz deleted successfully!');
       fetchQuizzes(); // Refresh the list
     } catch (err) {
       console.error('Error deleting quiz:', err);
       console.error('Error response:', err.response);
-      alert(err.response?.data?.message || err.message || 'Failed to delete quiz');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to delete quiz. Please try again.';
+      
+      if (err.response) {
+        if (err.response.status === 404) {
+          errorMessage = 'Quiz not found. It may have already been deleted.';
+        } else if (err.response.status === 403) {
+          errorMessage = 'You are not authorized to delete this quiz.';
+        } else if (err.response.status === 400) {
+          errorMessage = err.response.data.message || 'Invalid quiz ID.';
+        } else if (err.response.status === 500) {
+          errorMessage = err.response.data.message || 'Server error. Please try again later.';
+        } else {
+          errorMessage = err.response.data.message || errorMessage;
+        }
+      } else if (err.request) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      alert(errorMessage);
     } finally {
       setShowDeleteModal(false);
       setQuizToDelete(null);

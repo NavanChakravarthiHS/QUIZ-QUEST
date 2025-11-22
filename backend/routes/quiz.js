@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Quiz = require('../models/Quiz');
 const Attempt = require('../models/Attempt');
 const User = require('../models/User');
@@ -777,6 +778,18 @@ router.delete('/:id', auth, async (req, res) => {
     console.log('DELETE request - Quiz ID:', req.params.id);
     console.log('User:', req.user._id, 'Role:', req.user.role);
     
+    // Validate quiz ID
+    if (!req.params.id) {
+      console.log('Quiz ID is missing');
+      return res.status(400).json({ message: 'Quiz ID is required' });
+    }
+    
+    // Validate if ID is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      console.log('Invalid quiz ID format');
+      return res.status(400).json({ message: 'Invalid quiz ID format' });
+    }
+    
     // Get quiz - handle database errors
     let quiz;
     try {
@@ -804,9 +817,18 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized: You can only delete your own quizzes' });
     }
 
-    // Delete quiz - handle database errors
+    // Delete related attempts first to prevent orphaned records
     try {
-      await quiz.remove();
+      const deletedAttempts = await Attempt.deleteMany({ quizId: quiz._id });
+      console.log(`Deleted ${deletedAttempts.deletedCount} related attempts`);
+    } catch (attemptError) {
+      console.error('Error deleting related attempts:', attemptError);
+      return res.status(500).json({ message: 'Error deleting quiz. Please try again.' });
+    }
+
+    // Delete quiz using findByIdAndDelete for proper Mongoose handling
+    try {
+      await Quiz.findByIdAndDelete(req.params.id);
     } catch (deleteError) {
       console.error('Error deleting quiz:', deleteError);
       return res.status(500).json({ message: 'Error deleting quiz. Please try again.' });
