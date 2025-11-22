@@ -6,7 +6,7 @@ function StudentAccess() {
   const { quizId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
+
   const [accessKey, setAccessKey] = useState('');
   const [usn, setUsn] = useState('');
   const [password, setPassword] = useState('');
@@ -24,7 +24,7 @@ function StudentAccess() {
     const loginSuccess = searchParams.get('loginSuccess');
     const storedAccessKey = localStorage.getItem('pendingAccessKey');
     const storedQuizId = localStorage.getItem('pendingQuizId');
-    
+
     if (loginSuccess === 'true' && storedAccessKey && storedQuizId === quizId) {
       // User just logged in, proceed with quiz access
       setAccessKey(storedAccessKey);
@@ -59,7 +59,7 @@ function StudentAccess() {
               totalDuration: err.response.data.totalDuration || 0,
               scheduledStartTime: err.response.data.scheduledStartTime || null
             });
-            
+
             // Check if it's manually scheduled
             if (err.response.data.isManuallyScheduled) {
               // For manually scheduled quizzes, don't show countdown
@@ -69,7 +69,7 @@ function StudentAccess() {
               const scheduledDateTime = new Date(err.response.data.scheduledStartTime);
               const now = new Date();
               const diffInSeconds = Math.floor((scheduledDateTime - now) / 1000);
-              
+
               if (diffInSeconds > 0) {
                 setTimeLeft(diffInSeconds);
               } else {
@@ -119,7 +119,7 @@ function StudentAccess() {
         });
       }, 1000);
     }
-    
+
     return () => {
       if (timer) clearInterval(timer);
     };
@@ -129,11 +129,11 @@ function StudentAccess() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       // Validate access key with the backend
       const response = await quizService.validateAccessKey(quizId, { accessKey });
-      
+
       // Check the response format
       if (response.data.success) {
         // Store access key temporarily
@@ -145,7 +145,7 @@ function StudentAccess() {
       }
     } catch (err) {
       console.error('Access key validation error:', err);
-      
+
       if (err.response) {
         // Check if the response has the new format
         if (err.response.data && typeof err.response.data.success !== 'undefined') {
@@ -167,7 +167,7 @@ function StudentAccess() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       // Access the quiz with access key and student credentials
       const response = await quizService.studentAccess(quizId, {
@@ -178,12 +178,12 @@ function StudentAccess() {
 
       // Store the attempt ID in localStorage
       localStorage.setItem('currentAttemptId', response.data.attemptId);
-      
+
       // Navigate directly to the quiz page with the attempt ID
       navigate(`/quiz/${quizId}?attemptId=${response.data.attemptId}`);
     } catch (err) {
       console.error('Student access error:', err);
-      
+
       if (err.response) {
         // Check if the response has the new format
         if (err.response.data && typeof err.response.data.success !== 'undefined') {
@@ -217,12 +217,12 @@ function StudentAccess() {
   // Format time for countdown display (Days:Hours:Minutes:Seconds)
   const formatCountdownTime = (seconds) => {
     if (seconds === null) return '00:00:00:00';
-    
+
     const days = Math.floor(seconds / (24 * 3600));
     const hours = Math.floor((seconds % (24 * 3600)) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     return `${days.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -247,7 +247,7 @@ function StudentAccess() {
               {step === 'authenticated' && 'Accessing your quiz...'}
             </p>
           </div>
-          
+
           {/* Main Content - Split Screen */}
           <div className="flex flex-col lg:flex-row gap-8 items-stretch">
             {/* Left Half - Quiz Details */}
@@ -260,7 +260,7 @@ function StudentAccess() {
                 </div>
                 <h1 className="text-3xl font-bold text-gray-800">Quiz Details</h1>
               </div>
-              
+
               {loadingDetails ? (
                 <div className="flex justify-center items-center h-64">
                   <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500"></div>
@@ -271,7 +271,7 @@ function StudentAccess() {
                     <h2 className="text-2xl font-bold text-gray-800">{quizDetails.title}</h2>
                     <p className="text-gray-600 mt-2 text-lg">{quizDetails.description}</p>
                   </div>
-                  
+
                   {/* Countdown Timer for Not Started Quizzes */}
                   {quizStatus === 'not_started' && (
                     timeLeft !== null ? (
@@ -343,7 +343,7 @@ function StudentAccess() {
                       </div>
                     )
                   )}
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-5 border border-indigo-100">
                       <div className="flex items-center mb-3">
@@ -359,7 +359,7 @@ function StudentAccess() {
                         <p className="text-gray-600 mt-1">{quizDetails.totalDuration} minutes</p>
                       )}
                     </div>
-                    
+
                     <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-2xl p-5 border border-cyan-100">
                       <div className="flex items-center mb-3">
                         <div className="bg-cyan-500 p-2 rounded-lg mr-3">
@@ -372,7 +372,7 @@ function StudentAccess() {
                       <p className="text-2xl font-bold text-gray-800">{quizDetails.questionsCount}</p>
                       <p className="text-gray-600 mt-1">Total Questions</p>
                     </div>
-                    
+
                     <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-100">
                       <div className="flex items-center mb-3">
                         <div className="bg-amber-500 p-2 rounded-lg mr-3">
@@ -384,7 +384,7 @@ function StudentAccess() {
                       </div>
                       <p className="text-xl font-bold text-gray-800">{formatDate(quizDetails.scheduledDate)}</p>
                     </div>
-                    
+
                     <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl p-5 border border-emerald-100">
                       <div className="flex items-center mb-3">
                         <div className="bg-emerald-500 p-2 rounded-lg mr-3">
@@ -409,7 +409,7 @@ function StudentAccess() {
                 </div>
               )}
             </div>
-            
+
             {/* Right Half - Access Board */}
             <div className="lg:w-1/2 bg-white rounded-3xl shadow-xl p-8 flex flex-col transition-all duration-300 hover:shadow-2xl">
               <div className="flex items-center mb-8">
@@ -431,7 +431,7 @@ function StudentAccess() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex-grow flex items-center">
                 <div className="w-full max-w-md mx-auto">
                   {step === 'access_key' && (
@@ -454,7 +454,7 @@ function StudentAccess() {
                           </div>
                         </div>
                       )}
-                      
+
                       <div>
                         <label htmlFor="accessKey" className="block text-sm font-medium text-gray-700 mb-2">
                           Access Key
@@ -476,15 +476,14 @@ function StudentAccess() {
                           />
                         </div>
                       </div>
-                      
+
                       <button
                         type="submit"
                         disabled={loading || quizStatus === 'not_started' || quizStatus === 'ended'}
-                        className={`w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-lg font-medium text-white transition-all duration-300 transform hover:scale-[1.02] ${
-                          loading || quizStatus === 'not_started' || quizStatus === 'ended'
-                            ? 'bg-gray-400 cursor-not-allowed' 
-                            : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600'
-                        }`}
+                        className={`w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-lg font-medium text-white transition-all duration-300 transform hover:scale-[1.02] ${loading || quizStatus === 'not_started' || quizStatus === 'ended'
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600'
+                          }`}
                       >
                         {loading ? (
                           <>
@@ -505,7 +504,7 @@ function StudentAccess() {
                       </button>
                     </form>
                   )}
-                  
+
                   {step === 'student_details' && (
                     // Student Details Form
                     <form onSubmit={handleStudentDetailsSubmit} className="space-y-6">
@@ -526,7 +525,7 @@ function StudentAccess() {
                           </div>
                         </div>
                       )}
-                      
+
                       <div>
                         <label htmlFor="accessKeyDisplay" className="block text-sm font-medium text-gray-700 mb-2">
                           Access Key
@@ -547,7 +546,7 @@ function StudentAccess() {
                           />
                         </div>
                       </div>
-                      
+
                       <div>
                         <label htmlFor="usn" className="block text-sm font-medium text-gray-700 mb-2">
                           USN
@@ -569,7 +568,7 @@ function StudentAccess() {
                           />
                         </div>
                       </div>
-                      
+
                       <div>
                         <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                           Password
@@ -591,7 +590,7 @@ function StudentAccess() {
                           />
                         </div>
                       </div>
-                      
+
                       <div className="flex space-x-4">
                         <button
                           type="button"
@@ -600,15 +599,14 @@ function StudentAccess() {
                         >
                           Back
                         </button>
-                        
+
                         <button
                           type="submit"
                           disabled={loading}
-                          className={`flex-1 flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-lg font-medium text-white transition-all duration-300 transform hover:scale-[1.02] ${
-                            loading 
-                              ? 'bg-cyan-400 cursor-not-allowed' 
-                              : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600'
-                          }`}
+                          className={`flex-1 flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-lg font-medium text-white transition-all duration-300 transform hover:scale-[1.02] ${loading
+                            ? 'bg-cyan-400 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600'
+                            }`}
                         >
                           {loading ? (
                             <>
@@ -630,7 +628,7 @@ function StudentAccess() {
                       </div>
                     </form>
                   )}
-                  
+
                   {step === 'authenticated' && (
                     // Accessing Quiz
                     <div className="text-center py-12">
@@ -639,12 +637,12 @@ function StudentAccess() {
                       <p className="text-gray-500 mt-2">Please wait while we prepare your quiz</p>
                     </div>
                   )}
-                  
+
                   <div className="mt-10 pt-6 border-t border-gray-200 text-center">
                     <p className="text-gray-600">
                       Need help accessing your quiz?{' '}
                       <a href="#" className="font-medium text-cyan-600 hover:text-cyan-500">
-                        Contact support
+                        Take help of your teacher
                       </a>
                     </p>
                   </div>
