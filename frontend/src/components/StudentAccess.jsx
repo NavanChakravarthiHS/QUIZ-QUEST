@@ -240,6 +240,22 @@ function StudentAccess() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
+      <style>{`
+        .truncate-description {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        @media (max-width: 768px) {
+          .truncate-description {
+            -webkit-line-clamp: 3;
+          }
+        }
+      `}</style>
+      
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -274,7 +290,7 @@ function StudentAccess() {
                   <div className="border-l-4 border-indigo-500 pl-4 py-2">
                     <h2 className="text-2xl font-bold text-gray-800">{quizDetails.title}</h2>
                     {quizDetails.description && (
-                      <p className="text-gray-600 mt-2 text-lg">{quizDetails.description}</p>
+                      <p className="text-gray-600 mt-2 text-lg truncate-description">{quizDetails.description}</p>
                     )}
                   </div>
                   

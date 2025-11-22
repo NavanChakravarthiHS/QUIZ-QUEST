@@ -101,6 +101,69 @@ function StudentDashboard({ user }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50">
+      <style>{`
+        .truncate-description {
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          word-wrap: break-word;
+          word-break: break-word;
+          max-width: 200px;
+        }
+        
+        @media (max-width: 768px) {
+          .truncate-description {
+            max-width: 150px;
+          }
+        }
+        
+        /* Ensure table layout is fixed to prevent overflow */
+        .quiz-attempts-table {
+          table-layout: fixed;
+          width: 100%;
+        }
+        
+        /* Set specific column widths to prevent overflow */
+        .quiz-attempts-table th:nth-child(1),
+        .quiz-attempts-table td:nth-child(1) {
+          width: 30%;
+        }
+        
+        .quiz-attempts-table th:nth-child(2),
+        .quiz-attempts-table td:nth-child(2) {
+          width: 15%;
+        }
+        
+        .quiz-attempts-table th:nth-child(3),
+        .quiz-attempts-table td:nth-child(3) {
+          width: 15%;
+        }
+        
+        .quiz-attempts-table th:nth-child(4),
+        .quiz-attempts-table td:nth-child(4) {
+          width: 15%;
+        }
+        
+        .quiz-attempts-table th:nth-child(5),
+        .quiz-attempts-table td:nth-child(5) {
+          width: 25%;
+        }
+        
+        @media (max-width: 768px) {
+          .quiz-attempts-table th:nth-child(1),
+          .quiz-attempts-table td:nth-child(1) {
+            width: 40%;
+          }
+          
+          .quiz-attempts-table th:nth-child(5),
+          .quiz-attempts-table td:nth-child(5) {
+            width: 20%;
+          }
+        }
+      `}</style>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -144,7 +207,7 @@ function StudentDashboard({ user }) {
               <div className="flex items-center">
                 <div className="bg-blue-100 rounded-full p-3 mr-4">
                   <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 11-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
                 <div>
@@ -233,7 +296,7 @@ function StudentDashboard({ user }) {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full quiz-attempts-table">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -256,9 +319,9 @@ function StudentDashboard({ user }) {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {attempts.map((attempt) => (
                     <tr key={attempt.attemptId} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">{attempt.quiz.title}</div>
-                        <div className="text-sm text-gray-500">{attempt.quiz.description || 'No description'}</div>
+                        <div className="text-sm text-gray-500 truncate-description">{attempt.quiz.description || 'No description'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
