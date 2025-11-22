@@ -367,10 +367,10 @@ function StudentAccess() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
                         </div>
-                        <h3 className="font-bold text-cyan-800">Questions</h3>
+                        <h3 className="font-bold text-cyan-800">Total Questions</h3>
                       </div>
                       <p className="text-2xl font-bold text-gray-800">{quizDetails.questionsCount}</p>
-                      <p className="text-gray-600 mt-1">Total Questions</p>
+                      {/* <p className="text-gray-600 mt-1">Total Questions</p> */}
                     </div>
 
                     <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-100">
