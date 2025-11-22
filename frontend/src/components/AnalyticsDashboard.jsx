@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { quizService } from '../services/authService';
 
 function AnalyticsDashboard({ quiz, onClose }) {
@@ -32,7 +32,7 @@ function AnalyticsDashboard({ quiz, onClose }) {
   };
 
   // Initialize data on component mount
-  useState(() => {
+  useEffect(() => {
     fetchAnalytics();
   }, [quiz._id]);
 
@@ -149,8 +149,8 @@ function AnalyticsDashboard({ quiz, onClose }) {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {attempts.map((attempt, index) => (
-                    <>
-                      <tr key={attempt.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <React.Fragment key={attempt.id}>
+                      <tr className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{attempt.student.name}</div>
                           <div className="text-sm text-gray-500">{attempt.student.email}</div>
@@ -214,7 +214,7 @@ function AnalyticsDashboard({ quiz, onClose }) {
                                                       { question: 'Unknown Question', options: [] };
                                       
                                       return (
-                                        <tr key={ansIndex} className={ansIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                        <tr key={`${attempt.id}-${answer.questionId}`} className={ansIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                                           <td className="px-4 py-2 text-sm text-gray-900 max-w-xs">
                                             <div className="truncate" title={question.question}>
                                               {question.question}
@@ -244,7 +244,7 @@ function AnalyticsDashboard({ quiz, onClose }) {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

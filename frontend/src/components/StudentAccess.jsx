@@ -17,6 +17,7 @@ function StudentAccess() {
   const [quizStatus, setQuizStatus] = useState(null); // 'not_started', 'ended', 'active'
   const [step, setStep] = useState('access_key'); // 'access_key', 'student_details', 'authenticated'
   const [validAccessKey, setValidAccessKey] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(null); // For countdown timer
 
   // Check if we're coming back from login
   useEffect(() => {
@@ -49,11 +50,36 @@ function StudentAccess() {
           if (err.response.data.status === 'not_started') {
             setQuizStatus('not_started');
             setQuizDetails({
-              title: 'Quiz Not Started',
-              description: err.response.data.message,
+              title: err.response.data.title || 'Quiz Not Started',
+              description: err.response.data.description || err.response.data.message,
               scheduledDate: err.response.data.scheduledDate,
-              scheduledTime: err.response.data.scheduledTime
+              scheduledTime: err.response.data.scheduledTime,
+              questionsCount: err.response.data.questionsCount || 0,
+              timingMode: err.response.data.timingMode || 'total',
+              totalDuration: err.response.data.totalDuration || 0,
+              scheduledStartTime: err.response.data.scheduledStartTime || null
             });
+            
+            // Check if it's manually scheduled
+            if (err.response.data.isManuallyScheduled) {
+              // For manually scheduled quizzes, don't show countdown
+              setTimeLeft(null);
+            } else if (err.response.data.scheduledStartTime) {
+              // Calculate time until quiz starts for scheduled quizzes using ISO format
+              const scheduledDateTime = new Date(err.response.data.scheduledStartTime);
+              const now = new Date();
+              const diffInSeconds = Math.floor((scheduledDateTime - now) / 1000);
+              
+              if (diffInSeconds > 0) {
+                setTimeLeft(diffInSeconds);
+              } else {
+                // If the time has passed, set time to 0
+                setTimeLeft(0);
+              }
+            } else {
+              // For manually scheduled quizzes without specific date/time, show a different message
+              setTimeLeft(null);
+            }
           } else if (err.response.data.status === 'ended') {
             setQuizStatus('ended');
             setQuizDetails({
@@ -77,6 +103,27 @@ function StudentAccess() {
       fetchQuizDetails();
     }
   }, [quizId]);
+
+  // Countdown timer effect
+  useEffect(() => {
+    let timer;
+    if (timeLeft !== null && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            // When countdown reaches zero, clear interval and update state
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [timeLeft]);
 
   const handleAccessKeySubmit = async (e) => {
     e.preventDefault();
@@ -167,14 +214,25 @@ function StudentAccess() {
     return timeString;
   };
 
-  // Redirect to appropriate page based on quiz status
-  if (quizStatus === 'not_started') {
-    return navigate(`/quiz-not-started/${quizId}`);
-  }
-  
-  if (quizStatus === 'ended') {
-    return navigate(`/quiz-ended/${quizId}`);
-  }
+  // Format time for countdown display (Days:Hours:Minutes:Seconds)
+  const formatCountdownTime = (seconds) => {
+    if (seconds === null) return '00:00:00:00';
+    
+    const days = Math.floor(seconds / (24 * 3600));
+    const hours = Math.floor((seconds % (24 * 3600)) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    return `${days.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Get start time
+  const getStartTime = () => {
+    if (quizDetails?.scheduledDate && quizDetails?.scheduledTime) {
+      return new Date(`${quizDetails.scheduledDate}T${quizDetails.scheduledTime}`);
+    }
+    return null;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
@@ -214,6 +272,78 @@ function StudentAccess() {
                     <p className="text-gray-600 mt-2 text-lg">{quizDetails.description}</p>
                   </div>
                   
+                  {/* Countdown Timer for Not Started Quizzes */}
+                  {quizStatus === 'not_started' && (
+                    timeLeft !== null ? (
+                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100">
+                        <h3 className="text-xl font-bold text-amber-800 mb-4 text-center">Quiz Starts In</h3>
+                        <div className="text-center mb-4">
+                          <div className="text-4xl font-bold text-amber-600 mb-2 font-mono">
+                            {formatCountdownTime(timeLeft)}
+                          </div>
+                          <div className="flex justify-center space-x-4 text-xs text-gray-600 uppercase tracking-wider">
+                            <span>Days</span>
+                            <span>Hours</span>
+                            <span>Minutes</span>
+                            <span>Seconds</span>
+                          </div>
+                        </div>
+                        {timeLeft > 0 ? (
+                          <>
+                            <p className="text-center text-gray-700">
+                              Quiz is scheduled. Countdown to start:
+                            </p>
+                            <p className="text-center text-gray-700 mt-2">
+                              Please wait for the quiz to start automatically...
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-center text-gray-700 font-bold">
+                              Quiz is starting... Checking status.
+                            </p>
+                            <p className="text-center text-gray-700 mt-2">
+                              Click "Refresh Status" to check if the quiz has started.
+                            </p>
+                          </>
+                        )}
+                        <div className="text-center mt-4">
+                          <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors"
+                          >
+                            Refresh Status
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+                        <h3 className="text-xl font-bold text-blue-800 mb-4 text-center">Quiz Not Yet Started</h3>
+                        <div className="flex justify-center mb-4">
+                          <div className="bg-blue-100 p-3 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                        </div>
+                        <p className="text-center text-gray-700">
+                          Quiz not yet started by the teacher.
+                        </p>
+                        <p className="text-center text-gray-700 mt-2">
+                          Please wait for the teacher to start the quiz.
+                        </p>
+                        <div className="text-center mt-4">
+                          <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                          >
+                            Refresh Status
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )}
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-5 border border-indigo-100">
                       <div className="flex items-center mb-3">
@@ -234,7 +364,7 @@ function StudentAccess() {
                       <div className="flex items-center mb-3">
                         <div className="bg-cyan-500 p-2 rounded-lg mr-3">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002-2h2a2 2 0 002 2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
                         </div>
                         <h3 className="font-bold text-cyan-800">Questions</h3>
@@ -266,49 +396,6 @@ function StudentAccess() {
                       </div>
                       <p className="text-xl font-bold text-gray-800">{formatTime(quizDetails.scheduledTime)}</p>
                     </div>
-                  </div>
-                  
-                  <div className="mt-8 pt-6 border-t border-gray-200">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Instructions
-                    </h3>
-                    <ul className="space-y-3">
-                      <li className="flex items-start">
-                        <div className="bg-indigo-100 rounded-full p-1 mt-1 mr-3">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <span className="text-gray-700">Enter the access key provided by your instructor</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="bg-indigo-100 rounded-full p-1 mt-1 mr-3">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <span className="text-gray-700">After entering a valid access key, you'll enter your student details</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="bg-indigo-100 rounded-full p-1 mt-1 mr-3">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <span className="text-gray-700">Enter your USN and password to access the quiz</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="bg-indigo-100 rounded-full p-1 mt-1 mr-3">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <span className="text-gray-700">Ensure you're accessing the quiz within the scheduled time</span>
-                      </li>
-                    </ul>
                   </div>
                 </div>
               ) : (
@@ -392,9 +479,9 @@ function StudentAccess() {
                       
                       <button
                         type="submit"
-                        disabled={loading || quizStatus !== 'active'}
+                        disabled={loading || quizStatus === 'not_started' || quizStatus === 'ended'}
                         className={`w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-lg font-medium text-white transition-all duration-300 transform hover:scale-[1.02] ${
-                          loading || quizStatus !== 'active'
+                          loading || quizStatus === 'not_started' || quizStatus === 'ended'
                             ? 'bg-gray-400 cursor-not-allowed' 
                             : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600'
                         }`}

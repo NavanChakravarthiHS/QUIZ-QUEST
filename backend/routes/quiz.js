@@ -1066,80 +1066,90 @@ router.get('/details/:quizId', optionalAuth, async (req, res) => {
     
     // Check if quiz is active
     if (!quiz.isActive) {
+      // Check if quiz is manually scheduled (no scheduled date/time)
+      if (!quiz.scheduledDate && !quiz.scheduledTime) {
+        return res.status(400).json({ 
+          message: 'Quiz not yet started by the teacher.',
+          status: 'not_started',
+          isManuallyScheduled: true,
+          title: quiz.title,
+          description: quiz.description,
+          timingMode: quiz.timingMode,
+          totalDuration: quiz.totalDuration,
+          questionsCount: quiz.questions.length,
+          scheduledDate: quiz.scheduledDate,
+          scheduledTime: quiz.scheduledTime
+        });
+      }
+      
+      // For date/time scheduled quizzes that are not active
+      const now = new Date();
+      const scheduledDate = new Date(quiz.scheduledDate);
+      
+      // Set time to midnight for date comparison
+      scheduledDate.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Check if quiz is scheduled for today or in the future
+      if (scheduledDate > today) {
+        // Quiz is scheduled for a future date
+        // Create scheduled start time in ISO format
+        const [scheduledHours, scheduledMinutes] = quiz.scheduledTime.split(':').map(Number);
+        const scheduledDateTime = new Date(scheduledDate);
+        scheduledDateTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
+        
+        return res.status(400).json({
+          message: 'Quiz is scheduled. Countdown to start:',
+          status: 'not_started',
+          isManuallyScheduled: false,
+          title: quiz.title,
+          description: quiz.description,
+          timingMode: quiz.timingMode,
+          totalDuration: quiz.totalDuration,
+          questionsCount: quiz.questions.length,
+          scheduledDate: quiz.scheduledDate,
+          scheduledTime: quiz.scheduledTime,
+          scheduledStartTime: scheduledDateTime.toISOString()
+        });
+      }
+      
+      if (scheduledDate.getTime() === today.getTime()) {
+        // Quiz is scheduled for today, check time
+        const [scheduledHours, scheduledMinutes] = quiz.scheduledTime.split(':').map(Number);
+        const scheduledDateTime = new Date();
+        scheduledDateTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
+        
+        if (now < scheduledDateTime) {
+          // Quiz hasn't started yet today
+          // Create scheduled start time in ISO format
+          const scheduledDateTimeISO = new Date(scheduledDate);
+          scheduledDateTimeISO.setHours(scheduledHours, scheduledMinutes, 0, 0);
+          
+          return res.status(400).json({
+            message: 'Quiz is scheduled. Countdown to start:',
+            status: 'not_started',
+            isManuallyScheduled: false,
+            title: quiz.title,
+            description: quiz.description,
+            timingMode: quiz.timingMode,
+            totalDuration: quiz.totalDuration,
+            questionsCount: quiz.questions.length,
+            scheduledDate: quiz.scheduledDate,
+            scheduledTime: quiz.scheduledTime,
+            scheduledStartTime: scheduledDateTimeISO.toISOString()
+          });
+        }
+      }
+      
+      // If we get here, the quiz is inactive but should be active based on schedule
       return res.status(400).json({ 
         message: 'Quiz is not active',
         status: 'inactive'
       });
     }
     
-    // If quiz is manually activated (no scheduled date/time), allow access immediately
-    if (!quiz.scheduledDate && !quiz.scheduledTime) {
-      // Quiz is active and not scheduled, so it's available immediately
-      const quizDetails = {
-        id: quiz._id,
-        title: quiz.title,
-        description: quiz.description,
-        timingMode: quiz.timingMode,
-        totalDuration: quiz.totalDuration,
-        questionsCount: quiz.questions.length,
-        scheduledDate: quiz.scheduledDate,
-        scheduledTime: quiz.scheduledTime,
-        accessKey: quiz.accessKey
-      };
-      
-      return res.json(quizDetails);
-    }
-    
-    // Get current time
-    const now = new Date();
-    const scheduledDate = new Date(quiz.scheduledDate);
-    
-    // Set time to midnight for date comparison
-    scheduledDate.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Check if quiz is scheduled for today or in the future
-    if (scheduledDate > today) {
-      // Quiz is scheduled for a future date
-      return res.status(400).json({
-        message: 'Quiz not yet started',
-        status: 'not_started',
-        scheduledDate: quiz.scheduledDate,
-        scheduledTime: quiz.scheduledTime
-      });
-    }
-    
-    if (scheduledDate.getTime() === today.getTime()) {
-      // Quiz is scheduled for today, check time
-      const [scheduledHours, scheduledMinutes] = quiz.scheduledTime.split(':').map(Number);
-      const scheduledDateTime = new Date();
-      scheduledDateTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
-      
-      if (now < scheduledDateTime) {
-        // Quiz hasn't started yet today
-        return res.status(400).json({
-          message: 'Quiz not yet started',
-          status: 'not_started',
-          scheduledDate: quiz.scheduledDate,
-          scheduledTime: quiz.scheduledTime,
-          startTime: scheduledDateTime
-        });
-      }
-      
-      // Check if quiz has ended (assuming it lasts for totalDuration minutes)
-      const endTime = new Date(scheduledDateTime.getTime() + quiz.totalDuration * 60000);
-      if (now > endTime) {
-        // Quiz has ended
-        return res.status(400).json({
-          message: 'Quiz has ended',
-          status: 'ended',
-          endTime: endTime
-        });
-      }
-    }
-    
-    // If we get here, the quiz is active and within the scheduled time
+    // If quiz is active, return quiz details
     const quizDetails = {
       id: quiz._id,
       title: quiz.title,
