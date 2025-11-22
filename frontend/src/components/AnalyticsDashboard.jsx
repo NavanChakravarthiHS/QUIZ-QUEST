@@ -94,53 +94,39 @@ function AnalyticsDashboard({ quiz, onClose }) {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="text-3xl font-bold">{analytics.totalStudents}</div>
-            <div className="text-blue-100">Total Students</div>
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500"></div>
+            <div className="text-3xl font-bold text-gray-800">{analytics.totalStudents}</div>
+            <div className="text-gray-500 mt-1">Total Students</div>
           </div>
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="text-3xl font-bold">{analytics.submittedStudents}</div>
-            <div className="text-green-100">Submitted</div>
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-2 bg-green-500"></div>
+            <div className="text-3xl font-bold text-gray-800">{analytics.submittedStudents}</div>
+            <div className="text-gray-500 mt-1">Submitted</div>
           </div>
-          <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="text-3xl font-bold">{analytics.notSubmittedStudents}</div>
-            <div className="text-red-100">Not Submitted</div>
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-2 bg-red-500"></div>
+            <div className="text-3xl font-bold text-gray-800">{analytics.notSubmittedStudents}</div>
+            <div className="text-gray-500 mt-1">Not Submitted</div>
           </div>
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="text-3xl font-bold">{analytics.averageScore.toFixed(1)}</div>
-            <div className="text-purple-100">Average Score</div>
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-2 bg-purple-500"></div>
+            <div className="text-3xl font-bold text-gray-800">{analytics.averageScore.toFixed(1)}</div>
+            <div className="text-gray-500 mt-1">Average Score</div>
           </div>
         </div>
 
         {/* Pass/Fail Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="text-3xl font-bold">{analytics.passedStudents}</div>
-            <div className="text-green-100">Students Passed</div>
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-2 bg-green-500"></div>
+            <div className="text-3xl font-bold text-gray-800">{analytics.passedStudents}</div>
+            <div className="text-gray-500 mt-1">Students Passed</div>
           </div>
-          <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="text-3xl font-bold">{analytics.failedStudents}</div>
-            <div className="text-red-100">Students Failed</div>
-          </div>
-        </div>
-
-        {/* Score Distribution */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-8 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-800 mb-4">Score Distribution</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {analytics.scoreDistribution.map((dist, index) => (
-              <div key={index} className="bg-gray-50 rounded-xl p-4">
-                <div className="text-lg font-semibold text-gray-800">{dist.range}</div>
-                <div className="text-2xl font-bold text-blue-600">{dist.count}</div>
-                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full" 
-                    style={{ width: `${dist.percentage}%` }}
-                  ></div>
-                </div>
-                <div className="text-sm text-gray-600 mt-1">{dist.percentage.toFixed(1)}%</div>
-              </div>
-            ))}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-2 bg-red-500"></div>
+            <div className="text-3xl font-bold text-gray-800">{analytics.failedStudents}</div>
+            <div className="text-gray-500 mt-1">Students Failed</div>
           </div>
         </div>
 

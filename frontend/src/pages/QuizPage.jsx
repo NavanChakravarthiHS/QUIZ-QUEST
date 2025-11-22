@@ -229,9 +229,10 @@ function QuizPage({ user }) {
   // Handle auto-submission when timer ends
   const handleAutoSubmit = (timingMode) => {
     setAutoSubmitMessage(`Time's up! Auto-submitting your quiz...`);
+    // Use a shorter delay for better user experience
     setTimeout(() => {
       handleSubmit(true); // true indicates auto-submit
-    }, 1000); // Small delay to show the message
+    }, 500); // Reduced delay to 500ms for faster response
   };
 
   const handleSubmit = async (isAutoSubmit = false) => {
@@ -279,8 +280,14 @@ function QuizPage({ user }) {
       localStorage.removeItem('currentAttemptId');
       localStorage.removeItem('guestStudent');
       
-      // Navigate to result page using the attemptId we already have
-      navigate(`/result/${attemptId}`);
+      // Navigate to result page with the submission response data
+      // Pass the response data directly to avoid additional API call
+      navigate(`/result/${attemptId}`, { 
+        state: { 
+          resultData: response.data.result,
+          quizTitle: quiz.title
+        } 
+      });
     } catch (err) {
       console.error('Error submitting quiz:', err);
       

@@ -861,8 +861,7 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
           highestScore: 0,
           lowestScore: 0,
           completionRate: 0,
-          passRate: 0,
-          scoreDistribution: []
+          passRate: 0
         },
         attempts: []
       });
@@ -894,28 +893,6 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
     const submittedStudents = completedAttempts;
     const notSubmittedStudents = totalStudents - submittedStudents;
 
-    // Score distribution (grouped by ranges)
-    const scoreDistribution = [];
-    const maxScore = Math.max(...totalScores);
-    const ranges = [
-      { min: 0, max: 25, label: '0-25%' },
-      { min: 25, max: 50, label: '25-50%' },
-      { min: 50, max: 75, label: '50-75%' },
-      { min: 75, max: 100, label: '75-100%' }
-    ];
-
-    ranges.forEach(range => {
-      const count = attempts.filter(attempt => {
-        const percentage = (attempt.score / attempt.totalScore) * 100;
-        return percentage >= range.min && percentage < range.max;
-      }).length;
-      scoreDistribution.push({
-        range: range.label,
-        count: count,
-        percentage: attempts.length > 0 ? (count / attempts.length) * 100 : 0
-      });
-    });
-
     // Prepare response data - handle both registered users and QR code students
     const responseData = {
       quiz: {
@@ -935,8 +912,7 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
         highestScore: highestScore,
         lowestScore: lowestScore,
         completionRate: Math.round(completionRate * 100) / 100,
-        passRate: Math.round(passRate * 100) / 100,
-        scoreDistribution: scoreDistribution
+        passRate: Math.round(passRate * 100) / 100
       },
       attempts: attempts.map(attempt => {
         // Handle both registered users and QR code students

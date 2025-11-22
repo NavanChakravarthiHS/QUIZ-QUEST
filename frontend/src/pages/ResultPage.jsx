@@ -1,18 +1,33 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { quizService } from '../services/authService';
 
 function ResultPage({ user }) {
   const { attemptId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
   useEffect(() => {
-    loadResult();
-  }, [attemptId]);
+    // Check if result data was passed from QuizPage
+    if (location.state && location.state.resultData) {
+      console.log('Using result data from location state:', location.state.resultData);
+      const resultWithQuiz = {
+        ...location.state.resultData,
+        quiz: {
+          title: location.state.quizTitle || 'Quiz'
+        }
+      };
+      setResult(resultWithQuiz);
+      setLoading(false);
+    } else {
+      // Fallback to API call if no data was passed
+      loadResult();
+    }
+  }, [attemptId, location.state]);
   
   const loadResult = async () => {
     try {
@@ -198,13 +213,12 @@ function ResultPage({ user }) {
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-red-600">No answer provided</p>
+                        <p className="text-gray-500">No answer selected</p>
                       )}
                     </div>
-                    
                     <div>
                       <p className="font-semibold text-gray-600 mb-2">Correct Answer:</p>
-                      <ul className="list-disc list-inside text-green-700">
+                      <ul className="list-disc list-inside text-gray-700">
                         {answer.correctOptions.map((opt, i) => (
                           <li key={i}>{opt}</li>
                         ))}
@@ -212,22 +226,25 @@ function ResultPage({ user }) {
                     </div>
                   </div>
                   
-                  <p className="mt-3 text-gray-600">
-                    Marks: {answer.pointsEarned} / {answer.totalPoints}
-                  </p>
+                  <div className="mt-4 flex justify-between items-center">
+                    <span className="text-gray-600">Time Spent: {answer.timeSpent} seconds</span>
+                    <span className="font-semibold">Points: {answer.pointsEarned} / {answer.points}</span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
+        
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-semibold"
+          >
+            Back to Dashboard
+          </button>
+        </div>
       </div>
-      
-      <button
-        onClick={() => navigate('/dashboard')}
-        className="mt-6 w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-semibold"
-      >
-        Back to Dashboard
-      </button>
     </div>
   );
 }

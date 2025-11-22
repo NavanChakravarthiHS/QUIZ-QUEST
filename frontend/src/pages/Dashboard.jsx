@@ -76,7 +76,23 @@ function Dashboard({ user }) {
       return 'ongoing';
     }
     
-    // If quiz is inactive
+    // If quiz is inactive, check if it was manually ended
+    if (!quiz.isActive) {
+      // If it has an actual end time, it's completed
+      if (quiz.actualEndTime) {
+        return 'completed';
+      }
+      
+      // If it was manually started (has actual start time) but not ended, it should be ongoing
+      // But since it's inactive, it might be in an inconsistent state
+      if (quiz.actualStartTime && !quiz.actualEndTime) {
+        // This is an edge case - quiz was manually started but is now inactive
+        // We'll treat it as completed since it's no longer active
+        return 'completed';
+      }
+    }
+    
+    // If quiz is inactive and has scheduled date/time
     if (quiz.scheduledDate && quiz.scheduledTime) {
       const scheduledDate = new Date(quiz.scheduledDate);
       scheduledDate.setHours(0, 0, 0, 0);
