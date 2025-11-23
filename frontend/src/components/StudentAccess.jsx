@@ -256,6 +256,19 @@ function StudentAccess() {
         }
       `}</style>
       
+      {/* Minimal header for students accessing quiz */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <span className="text-xl font-bold text-gray-900">QuizQuest</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}

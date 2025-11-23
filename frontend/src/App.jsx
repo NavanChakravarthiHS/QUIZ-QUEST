@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -19,6 +19,30 @@ import QuizNotStarted from './pages/QuizNotStarted';
 import QuizEnded from './pages/QuizEnded';
 import Navbar from './components/Navbar';
 import { authService } from './services/authService';
+
+// Wrapper component to conditionally render Navbar
+function NavbarWrapper({ user, onLogout }) {
+  const location = useLocation();
+  
+  // Define quiz-related routes where navbar should be hidden
+  const quizRoutes = [
+    '/quiz/',
+    '/student-access/',
+    '/quiz-not-started/',
+    '/quiz-ended/',
+    '/result/'
+  ];
+  
+  // Check if current route is a quiz-related route
+  const isQuizRoute = quizRoutes.some(route => location.pathname.includes(route));
+  
+  // Hide navbar only on quiz routes
+  if (isQuizRoute) {
+    return null;
+  }
+  
+  return <Navbar user={user} onLogout={onLogout} />;
+}
 
 function App() {
   const [user, setUser] = useState(null);
@@ -72,7 +96,7 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
-        <Navbar user={user} onLogout={handleLogout} />
+        <NavbarWrapper user={user} onLogout={handleLogout} />
         <Routes>
           <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Landing />} />
           <Route path="/login" element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
