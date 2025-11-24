@@ -899,7 +899,7 @@ router.get('/analytics/:quizId', auth, async (req, res) => {
     const completionRate = (completedAttempts / attempts.length) * 100;
     
     // Pass/Fail statistics (assuming 50% is the pass mark)
-    const PASS_THRESHOLD = 50;
+    const PASS_THRESHOLD = 33;
     const passedAttempts = attempts.filter(attempt => {
       if (attempt.totalScore > 0) {
         const percentage = (attempt.score / attempt.totalScore) * 100;
