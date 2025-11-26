@@ -8,8 +8,8 @@
     "build": "npm run build --prefix frontend"
   },
   "devDependencies": {
-    
-    "concurrently": "^8.2.2"
-    
+    "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^8.2.2",
+    "vite": "^7.2.4"
   }
 }
