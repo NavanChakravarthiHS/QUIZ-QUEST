@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { quizService } from '../services/authService';
+import QuestionNavigator from '../components/QuestionNavigator'; // Import the QuestionNavigator component
 
 function QuizPage({ user }) {
   const { quizId } = useParams();
@@ -20,6 +21,9 @@ function QuizPage({ user }) {
   const [questionTimes, setQuestionTimes] = useState({}); // Track time spent on each question
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoSubmitMessage, setAutoSubmitMessage] = useState(''); // For auto-submit notifications
+  
+  // New state for question navigator
+  const [visited, setVisited] = useState(new Set([0])); // Initialize with first question as visited
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -184,6 +188,31 @@ function QuizPage({ user }) {
     });
   };
 
+  const handleQuestionNavigation = (index) => {
+    if (isSubmitting) return; // Prevent action if already submitting
+    
+    // In per-question mode, don't allow navigation to other questions
+    if (quiz.timingMode === 'per-question') {
+      setError('Cannot navigate to other questions in fixed-time mode');
+      return;
+    }
+    
+    // Record time spent on current question
+    if (questionStartTime) {
+      const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+      setQuestionTimes(prev => ({
+        ...prev,
+        [currentQuestionIndex]: timeSpent
+      }));
+    }
+    
+    // Mark the target question as visited
+    setVisited(prev => new Set(prev).add(index));
+    
+    setCurrentQuestionIndex(index);
+    setQuestionStartTime(Date.now());
+  };
+
   const handleNextQuestion = (isAutoMove = false) => {
     if (isSubmitting) return; // Prevent action if already submitting
     
@@ -197,6 +226,9 @@ function QuizPage({ user }) {
     }
     
     if (currentQuestionIndex < quiz.questions.length - 1) {
+      // Mark next question as visited
+      setVisited(prev => new Set(prev).add(currentQuestionIndex + 1));
+      
       setCurrentQuestionIndex(prev => prev + 1);
       setQuestionStartTime(Date.now());
     }
@@ -390,7 +422,7 @@ function QuizPage({ user }) {
         </div>
       )}
       
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Auto-submit notification */}
         {autoSubmitMessage && (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-6">
@@ -407,214 +439,231 @@ function QuizPage({ user }) {
           </div>
         )}
         
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{quiz.title}</h1>
-              <p className="text-gray-600 mt-1">{quiz.description}</p>
-              <div className="mt-2 inline-block">
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-                  {quiz.timingMode === 'total' ? 'Free Navigation Mode' : 'Fixed Time per Question'}
-                </span>
-              </div>
-            </div>
-            <div className="mt-4 md:mt-0 flex items-center space-x-6">
-              <div className={`${timeLeft < 60 && quiz.timingMode === 'total' ? 'bg-red-50' : 'bg-blue-50'} rounded-lg px-4 py-2`}>
-                <div className={`text-sm font-medium ${timeLeft < 60 ? 'text-red-800' : 'text-blue-800'}`}>
-                  {quiz.timingMode === 'total' ? 'Total Time' : 'Question Time'}
-                </div>
-                <div className={`text-xl font-bold ${timeLeft < 60 ? 'text-red-600' : 'text-blue-600'}`}>
-                  {formatTime(timeLeft)}
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-lg px-4 py-2">
-                <div className="text-sm text-gray-800 font-medium">Question</div>
-                <div className="text-xl font-bold text-gray-900">
-                  {currentQuestionIndex + 1} / {quiz.questions.length}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className="mt-6">
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Error message within quiz */}
-        {error && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-6">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Question */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex items-start mb-6">
-            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-blue-800 font-bold">{currentQuestionIndex + 1}</span>
-            </div>
-            <div className="ml-4">
-              <h2 className="text-xl font-semibold text-gray-900">{currentQuestion.question}</h2>
-              <div className="mt-2 flex items-center text-sm text-gray-500">
-                <span className="bg-gray-100 px-2 py-1 rounded">{currentQuestion.points} Marks</span>
-                <span className="mx-2">•</span>
-                <span>{currentQuestion.type === 'single' ? 'Single Choice' : 'Multiple Choice'}</span>
-              </div>
-            </div>
-          </div>
-
-          {currentQuestion.imageUrl && (
-            <div className="mb-6">
-              <img 
-                src={currentQuestion.imageUrl} 
-                alt="Question" 
-                className="max-w-full h-auto rounded-lg border border-gray-200"
-              />
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {currentQuestion.options.map((option, index) => {
-              const isSelected = answers[currentQuestion._id] 
-                ? answers[currentQuestion._id].includes(option.text) 
-                : false;
-              
-              return (
-                <div 
-                  key={index}
-                  onClick={() => handleAnswerSelect(currentQuestion._id, option.text, currentQuestion.type === 'multiple')}
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    isSelected 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    {currentQuestion.type === 'multiple' ? (
-                      <div className={`flex-shrink-0 h-5 w-5 rounded border flex items-center justify-center ${
-                        isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
-                      }`}>
-                        {isSelected && (
-                          <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                    ) : (
-                      <div className={`flex-shrink-0 h-5 w-5 rounded-full border flex items-center justify-center ${
-                        isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
-                      }`}>
-                        {isSelected && (
-                          <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                    )}
-                    <span className="ml-3 text-gray-800">{option.text}</span>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Main quiz content */}
+          <div className="lg:w-3/4">
+            {/* Header */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">{quiz.title}</h1>
+                  <p className="text-gray-600 mt-1">{quiz.description}</p>
+                  <div className="mt-2 inline-block">
+                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                      {quiz.timingMode === 'total' ? 'Free Navigation Mode' : 'Fixed Time per Question'}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+                <div className="mt-4 md:mt-0 flex items-center space-x-6">
+                  <div className={`${timeLeft < 60 && quiz.timingMode === 'total' ? 'bg-red-50' : 'bg-blue-50'} rounded-lg px-4 py-2`}>
+                    <div className={`text-sm font-medium ${timeLeft < 60 ? 'text-red-800' : 'text-blue-800'}`}>
+                      {quiz.timingMode === 'total' ? 'Total Time' : 'Question Time'}
+                    </div>
+                    <div className={`text-xl font-bold ${timeLeft < 60 ? 'text-red-600' : 'text-blue-600'}`}>
+                      {formatTime(timeLeft)}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg px-4 py-2">
+                    <div className="text-sm text-gray-800 font-medium">Question</div>
+                    <div className="text-xl font-bold text-gray-900">
+                      {currentQuestionIndex + 1} / {quiz.questions.length}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="mt-6">
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
 
-        {/* Navigation */}
-        <div className="flex flex-col sm:flex-row justify-between gap-4">
-          <div>
-            {quiz.timingMode === 'total' ? (
-              <button
-                onClick={handlePreviousQuestion}
-                disabled={currentQuestionIndex === 0 || isSubmitting}
-                className={`px-6 py-3 rounded-lg font-medium ${
-                  currentQuestionIndex === 0 || isSubmitting
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                Previous
-              </button>
-            ) : (
-              <div className="text-sm text-gray-500 py-3">
-                Cannot navigate back in fixed-time mode
+            {/* Error message within quiz */}
+            {error && (
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-6">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-700">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Question */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="flex items-start mb-6">
+                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <span className="text-blue-800 font-bold">{currentQuestionIndex + 1}</span>
+                </div>
+                <div className="ml-4">
+                  <h2 className="text-xl font-semibold text-gray-900">{currentQuestion.question}</h2>
+                  <div className="mt-2 flex items-center text-sm text-gray-500">
+                    <span className="bg-gray-100 px-2 py-1 rounded">{currentQuestion.points} Marks</span>
+                    <span className="mx-2">•</span>
+                    <span>{currentQuestion.type === 'single' ? 'Single Choice' : 'Multiple Choice'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {currentQuestion.imageUrl && (
+                <div className="mb-6">
+                  <img 
+                    src={currentQuestion.imageUrl} 
+                    alt="Question" 
+                    className="max-w-full h-auto rounded-lg border border-gray-200"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {currentQuestion.options.map((option, index) => {
+                  const isSelected = answers[currentQuestion._id] 
+                    ? answers[currentQuestion._id].includes(option.text) 
+                    : false;
+                  
+                  return (
+                    <div 
+                      key={index}
+                      onClick={() => handleAnswerSelect(currentQuestion._id, option.text, currentQuestion.type === 'multiple')}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        {currentQuestion.type === 'multiple' ? (
+                          <div className={`flex-shrink-0 h-5 w-5 rounded border flex items-center justify-center ${
+                            isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                          }`}>
+                            {isSelected && (
+                              <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        ) : (
+                          <div className={`flex-shrink-0 h-5 w-5 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                          }`}>
+                            {isSelected && (
+                              <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        )}
+                        <span className="ml-3 text-gray-800">{option.text}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4">
+              <div>
+                {quiz.timingMode === 'total' ? (
+                  <button
+                    onClick={handlePreviousQuestion}
+                    disabled={currentQuestionIndex === 0 || isSubmitting}
+                    className={`px-6 py-3 rounded-lg font-medium ${
+                      currentQuestionIndex === 0 || isSubmitting
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Previous
+                  </button>
+                ) : (
+                  <div className="text-sm text-gray-500 py-3">
+                    Cannot navigate back in fixed-time mode
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex gap-4">
+                {currentQuestionIndex < quiz.questions.length - 1 ? (
+                  <button
+                    onClick={() => handleNextQuestion(false)}
+                    disabled={isSubmitting}
+                    className={`px-6 py-3 rounded-lg font-medium flex-1 sm:flex-none ${
+                      isSubmitting
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {quiz.timingMode === 'per-question' ? 'Next Question' : 'Next'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleSubmit(false)}
+                    disabled={isSubmitting}
+                    className={`px-6 py-3 rounded-lg font-medium flex-1 sm:flex-none flex items-center justify-center ${
+                      isSubmitting
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Quiz'
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Tab Switch Warning */}
+            {tabSwitchCount > 0 && (
+              <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-700">
+                      <span className="font-medium">Warning:</span> You have switched tabs {tabSwitchCount} time(s). 
+                      Please focus on the quiz to maintain integrity.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
           
-          <div className="flex gap-4">
-            {currentQuestionIndex < quiz.questions.length - 1 ? (
-              <button
-                onClick={() => handleNextQuestion(false)}
-                disabled={isSubmitting}
-                className={`px-6 py-3 rounded-lg font-medium flex-1 sm:flex-none ${
-                  isSubmitting
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                {quiz.timingMode === 'per-question' ? 'Next Question' : 'Next'}
-              </button>
-            ) : (
-              <button
-                onClick={() => handleSubmit(false)}
-                disabled={isSubmitting}
-                className={`px-6 py-3 rounded-lg font-medium flex-1 sm:flex-none flex items-center justify-center ${
-                  isSubmitting
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit Quiz'
-                )}
-              </button>
-            )}
+          {/* Question Navigator Sidebar */}
+          <div className="lg:w-1/4">
+            <QuestionNavigator
+              totalQuestions={quiz.questions.length}
+              currentQuestionIndex={currentQuestionIndex}
+              onQuestionSelect={handleQuestionNavigation}
+              answers={answers}
+              visited={visited}
+              questions={quiz.questions}
+            />
           </div>
         </div>
-
-        {/* Tab Switch Warning */}
-        {tabSwitchCount > 0 && (
-          <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                  <span className="font-medium">Warning:</span> You have switched tabs {tabSwitchCount} time(s). 
-                  Please focus on the quiz to maintain integrity.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
