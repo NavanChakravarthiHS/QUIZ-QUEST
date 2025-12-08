@@ -3,7 +3,16 @@ const mongoose = require('mongoose');
 const questionSchema = new mongoose.Schema({
   question: {
     type: String,
-    required: true
+    default: '' // Not required for image/audio questions
+  },
+  questionType: {
+    type: String,
+    enum: ['text', 'image', 'audio'],
+    default: 'text'
+  },
+  mediaUrl: {
+    type: String,
+    default: ''
   },
   type: {
     type: String,
@@ -20,10 +29,6 @@ const questionSchema = new mongoose.Schema({
   },
   timeLimit: {
     type: Number, // in seconds (for per-question mode)
-    default: null
-  },
-  imageUrl: {
-    type: String,
     default: null
   }
 });

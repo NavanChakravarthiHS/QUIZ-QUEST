@@ -8,8 +8,16 @@ const questionBankSchema = new mongoose.Schema({
   },
   question: {
     type: String,
-    required: true,
-    trim: true
+    default: '' // Not required for image/audio questions
+  },
+  questionType: {
+    type: String,
+    enum: ['text', 'image', 'audio'],
+    default: 'text'
+  },
+  mediaUrl: {
+    type: String,
+    default: ''
   },
   type: {
     type: String,
@@ -32,10 +40,6 @@ const questionBankSchema = new mongoose.Schema({
     min: 1
   },
   // Removed difficulty field as per requirement
-  imageUrl: {
-    type: String,
-    default: ''
-  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

@@ -18,15 +18,15 @@ function QuestionBank({ user }) {
   const [formData, setFormData] = useState({
     subject: '',
     question: '',
+    questionType: 'text', // New field for question type (text, image, audio)
+    mediaUrl: '', // New field for media URL
     type: 'single',
     options: [
       { text: '', isCorrect: false },
       { text: '', isCorrect: false },
       { text: '', isCorrect: false }
     ],
-    points: 1,
-    // Removed difficulty field as per requirement
-    imageUrl: ''
+    points: 1
   });
 
   // New state for subject input
@@ -105,15 +105,15 @@ function QuestionBank({ user }) {
     setFormData({
       subject: '',
       question: '',
+      questionType: 'text',
+      mediaUrl: '',
       type: 'single',
       options: [
         { text: '', isCorrect: false },
         { text: '', isCorrect: false },
         { text: '', isCorrect: false }
       ],
-      points: 1,
-      // Removed difficulty field as per requirement
-      imageUrl: ''
+      points: 1
     });
     setSubjectInput('');
     setEditingQuestion(null);
@@ -125,21 +125,34 @@ function QuestionBank({ user }) {
     setFormData({
       subject: '',
       question: '',
+      questionType: 'text',
+      mediaUrl: '',
       type: 'single',
       options: [
         { text: '', isCorrect: false },
         { text: '', isCorrect: false },
         { text: '', isCorrect: false }
       ],
-      points: 1,
-      // Removed difficulty field as per requirement
-      imageUrl: ''
+      points: 1
     });
     setSubjectInput('');
     setEditingQuestion(null);
     // Don't hide the form in continuous mode
     if (!continuousMode) {
       setShowAddForm(false);
+    }
+  };
+
+  // Handle media upload (simulated - in a real app, you would upload to a server)
+  const handleMediaUpload = (file, type) => {
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFormData({ ...formData, mediaUrl: e.target.result });
+        setSuccess(`${type.charAt(0).toUpperCase() + type.slice(1)} uploaded successfully!`);
+        setTimeout(() => setSuccess(''), 3000);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -154,8 +167,15 @@ function QuestionBank({ user }) {
       return;
     }
 
-    if (!formData.question.trim()) {
+    // For text questions, validate question text
+    if (formData.questionType === 'text' && !formData.question.trim()) {
       setError('Question text is required');
+      return;
+    }
+    
+    // For image/audio questions, validate media
+    if ((formData.questionType === 'image' || formData.questionType === 'audio') && !formData.mediaUrl) {
+      setError(`Please upload ${formData.questionType} file`);
       return;
     }
 
@@ -192,6 +212,7 @@ function QuestionBank({ user }) {
           ...prev,
           subject: formData.subject,
           question: '',
+          mediaUrl: '',
           options: [
             { text: '', isCorrect: false },
             { text: '', isCorrect: false },
@@ -215,12 +236,12 @@ function QuestionBank({ user }) {
   const handleEdit = (question) => {
     setFormData({
       subject: question.subject,
-      question: question.question,
+      question: question.question || '',
+      questionType: question.questionType || 'text',
+      mediaUrl: question.mediaUrl || '',
       type: question.type,
       options: question.options,
-      points: question.points,
-      // Removed difficulty field as per requirement
-      imageUrl: question.imageUrl || ''
+      points: question.points
     });
     setSubjectInput(question.subject);
     setEditingQuestion(question);
@@ -353,6 +374,90 @@ function QuestionBank({ user }) {
                     Question Type *
                   </label>
                   <select
+                    value={formData.questionType || 'text'}
+                    onChange={(e) => setFormData({ ...formData, questionType: e.target.value, question: '', mediaUrl: '' })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="text">Text Question</option>
+                    <option value="image">Image Question</option>
+                    <option value="audio">Audio Question</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Question Input based on type */}
+              {formData.questionType === 'text' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Question Text *
+                  </label>
+                  <textarea
+                    value={formData.question}
+                    onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows="3"
+                    placeholder="Enter your question"
+                    required
+                  />
+                </div>
+              ) : formData.questionType === 'image' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Image Upload *
+                  </label>
+                  {formData.mediaUrl ? (
+                    <div className="flex flex-col items-start">
+                      <img src={formData.mediaUrl} alt="Question" className="max-w-full h-auto rounded-lg border border-gray-200 mb-2" />
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, mediaUrl: '' })}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Remove Image
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleMediaUpload(e.target.files[0], 'image')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Audio Upload *
+                  </label>
+                  {formData.mediaUrl ? (
+                    <div className="flex flex-col items-start">
+                      <audio controls src={formData.mediaUrl} className="mb-2 w-full" />
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, mediaUrl: '' })}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Remove Audio
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={(e) => handleMediaUpload(e.target.files[0], 'audio')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  )}
+                </div>
+              )}
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Answer Type *
+                  </label>
+                  <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -361,23 +466,7 @@ function QuestionBank({ user }) {
                     <option value="multiple">Multiple Choice</option>
                   </select>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Question Text *
-                </label>
-                <textarea
-                  value={formData.question}
-                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows="3"
-                  placeholder="Enter your question"
-                  required
-                />
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Points *
@@ -390,8 +479,6 @@ function QuestionBank({ user }) {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
-
-                {/* Removed difficulty field as per requirement */}
               </div>
 
               <div>
@@ -516,7 +603,6 @@ function QuestionBank({ user }) {
                       <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
                         {q.subject}
                       </span>
-                      {/* Removed difficulty display as per requirement */}
                       <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">
                         {q.type === 'single' ? 'Single Choice' : 'Multiple Choice'}
                       </span>

@@ -113,19 +113,30 @@ router.post('/create', auth, async (req, res) => {
       return res.status(403).json({ message: 'Only teachers can create questions' });
     }
 
-    const { subject, question, type, options, points, imageUrl } = req.body;
+    const { subject, question, questionType, mediaUrl, type, options, points } = req.body;
 
     // Validation
     if (!subject || !subject.trim()) {
       return res.status(400).json({ message: 'Subject is required' });
     }
 
-    if (!question || !question.trim()) {
-      return res.status(400).json({ message: 'Question text is required' });
+    // Validate question type
+    if (!questionType || !['text', 'image', 'audio'].includes(questionType)) {
+      return res.status(400).json({ message: 'Invalid question type' });
+    }
+
+    // For text questions, validate question text
+    if (questionType === 'text' && (!question || !question.trim())) {
+      return res.status(400).json({ message: 'Question text is required for text questions' });
+    }
+
+    // For image/audio questions, validate media URL
+    if ((questionType === 'image' || questionType === 'audio') && !mediaUrl) {
+      return res.status(400).json({ message: `Media URL is required for ${questionType} questions` });
     }
 
     if (!type || !['single', 'multiple'].includes(type)) {
-      return res.status(400).json({ message: 'Invalid question type' });
+      return res.status(400).json({ message: 'Invalid answer type' });
     }
 
     if (!options || !Array.isArray(options) || options.length < 2) {
@@ -146,12 +157,12 @@ router.post('/create', auth, async (req, res) => {
 
     const newQuestion = new QuestionBank({
       subject: subject.trim(),
-      question: question.trim(),
+      question: questionType === 'text' ? question.trim() : '',
+      questionType,
+      mediaUrl: mediaUrl || '',
       type,
       options,
       points: points || 1,
-      // Removed difficulty field as per requirement
-      imageUrl: imageUrl || '',
       createdBy: req.user._id
     });
 
@@ -215,15 +226,23 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'You can only update your own questions' });
     }
 
-    const { subject, question: questionText, type, options, points, imageUrl } = req.body;
+    const { subject, question: questionText, questionType, mediaUrl, type, options, points } = req.body;
 
     if (subject) question.subject = subject.trim();
-    if (questionText) question.question = questionText.trim();
+    if (questionType) question.questionType = questionType;
+    
+    // Update question text or media URL based on question type
+    if (questionType === 'text') {
+      if (questionText) question.question = questionText.trim();
+      question.mediaUrl = '';
+    } else if (questionType === 'image' || questionType === 'audio') {
+      question.question = '';
+      if (mediaUrl !== undefined) question.mediaUrl = mediaUrl;
+    }
+    
     if (type) question.type = type;
     if (options) question.options = options;
     if (points) question.points = points;
-    // Removed difficulty field as per requirement
-    if (imageUrl !== undefined) question.imageUrl = imageUrl;
 
     await question.save();
 

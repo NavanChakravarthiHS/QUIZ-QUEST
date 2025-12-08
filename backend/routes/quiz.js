@@ -47,8 +47,20 @@ router.post('/create', auth, async (req, res) => {
     // Validate questions
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      if (!q.question || !q.question.trim()) {
-        return res.status(400).json({ message: `Question ${i + 1}: Question text is required` });
+      
+      // Validate question type
+      if (!q.questionType || !['text', 'image', 'audio'].includes(q.questionType)) {
+        return res.status(400).json({ message: `Question ${i + 1}: Invalid question type` });
+      }
+      
+      // For text questions, validate question text
+      if (q.questionType === 'text' && (!q.question || !q.question.trim())) {
+        return res.status(400).json({ message: `Question ${i + 1}: Question text is required for text questions` });
+      }
+      
+      // For image/audio questions, validate media URL
+      if ((q.questionType === 'image' || q.questionType === 'audio') && !q.mediaUrl) {
+        return res.status(400).json({ message: `Question ${i + 1}: Media URL is required for ${q.questionType} questions` });
       }
       
       if (!q.options || !Array.isArray(q.options) || q.options.length < 2) {
@@ -90,15 +102,16 @@ router.post('/create', auth, async (req, res) => {
       description: description ? description.trim() : '',
       createdBy: req.user._id,
       questions: questions.map(q => ({
-        question: q.question.trim(),
+        question: q.questionType === 'text' ? q.question.trim() : '',
+        questionType: q.questionType,
+        mediaUrl: q.mediaUrl || '',
         type: q.type,
         options: q.options.map(opt => ({
           text: opt.text.trim(),
           isCorrect: opt.isCorrect
         })),
         points: q.points,
-        timeLimit: timingMode === 'per-question' ? q.timeLimit : null,
-        imageUrl: q.imageUrl || null
+        timeLimit: timingMode === 'per-question' ? q.timeLimit : null
       })),
       timingMode,
       totalDuration,
@@ -199,14 +212,15 @@ router.get('/join/:quizId', auth, async (req, res) => {
             questions: quiz.questions.map(q => ({
               _id: q._id,
               question: q.question,
+              questionType: q.questionType,
+              mediaUrl: q.mediaUrl,
               type: q.type,
               options: q.options.map(opt => ({
                 text: opt.text,
                 // Don't include isCorrect in response
               })),
               points: q.points,
-              timeLimit: q.timeLimit,
-              imageUrl: q.imageUrl // Include imageUrl in response
+              timeLimit: q.timeLimit
             }))
           };
           
@@ -249,14 +263,15 @@ router.get('/join/:quizId', auth, async (req, res) => {
       questions: quiz.questions.map(q => ({
         _id: q._id,
         question: q.question,
+        questionType: q.questionType,
+        mediaUrl: q.mediaUrl,
         type: q.type,
         options: q.options.map(opt => ({
           text: opt.text,
           // Don't include isCorrect in response
         })),
         points: q.points,
-        timeLimit: q.timeLimit,
-        imageUrl: q.imageUrl // Include imageUrl in response
+        timeLimit: q.timeLimit
       }))
     };
 
@@ -382,14 +397,15 @@ router.post('/student-access/:quizId', optionalAuth, async (req, res) => {
       questions: quiz.questions.map(q => ({
         _id: q._id,
         question: q.question,
+        questionType: q.questionType,
+        mediaUrl: q.mediaUrl,
         type: q.type,
         options: q.options.map(opt => ({
           text: opt.text,
           // Don't include isCorrect in response
         })),
         points: q.points,
-        timeLimit: q.timeLimit,
-        imageUrl: q.imageUrl // Include imageUrl in response
+        timeLimit: q.timeLimit
       }))
     };
 
@@ -1048,14 +1064,15 @@ router.get('/attempt/:attemptId', optionalAuth, async (req, res) => {
       questions: attempt.quizId.questions.map(q => ({
         _id: q._id,
         question: q.question,
+        questionType: q.questionType,
+        mediaUrl: q.mediaUrl,
         type: q.type,
         options: q.options.map(opt => ({
           text: opt.text,
           // Don't include isCorrect in response
         })),
         points: q.points,
-        timeLimit: q.timeLimit,
-        imageUrl: q.imageUrl // Include imageUrl in response
+        timeLimit: q.timeLimit
       }))
     };
 

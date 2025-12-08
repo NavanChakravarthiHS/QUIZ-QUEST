@@ -506,7 +506,11 @@ function QuizPage({ user }) {
                   <span className="text-blue-800 font-bold">{currentQuestionIndex + 1}</span>
                 </div>
                 <div className="ml-4">
-                  <h2 className="text-xl font-semibold text-gray-900">{currentQuestion.question}</h2>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {currentQuestion.questionType === 'text' 
+                      ? currentQuestion.question 
+                      : `${currentQuestion.questionType.charAt(0).toUpperCase() + currentQuestion.questionType.slice(1)} Question`}
+                  </h2>
                   <div className="mt-2 flex items-center text-sm text-gray-500">
                     <span className="bg-gray-100 px-2 py-1 rounded">{currentQuestion.points} Marks</span>
                     <span className="mx-2">•</span>
@@ -515,13 +519,26 @@ function QuizPage({ user }) {
                 </div>
               </div>
 
-              {currentQuestion.imageUrl && (
+              {/* Display media based on question type */}
+              {currentQuestion.questionType === 'image' && currentQuestion.mediaUrl && (
                 <div className="mb-6">
                   <img 
-                    src={currentQuestion.imageUrl} 
+                    src={currentQuestion.mediaUrl} 
                     alt="Question" 
                     className="max-w-full h-auto rounded-lg border border-gray-200"
                   />
+                </div>
+              )}
+
+              {currentQuestion.questionType === 'audio' && currentQuestion.mediaUrl && (
+                <div className="mb-6">
+                  <audio controls src={currentQuestion.mediaUrl} className="w-full" />
+                </div>
+              )}
+
+              {currentQuestion.questionType === 'text' && currentQuestion.question && (
+                <div className="mb-6 text-gray-800">
+                  {currentQuestion.question}
                 </div>
               )}
 

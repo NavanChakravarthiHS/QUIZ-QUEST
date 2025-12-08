@@ -111,14 +111,15 @@ function CreateQuiz({ user }) {
     const newQuestion = {
       id: `question-${Date.now()}-${Math.random()}`,
       question: '',
+      questionType: 'text', // New field for question type (text, image, audio)
+      mediaUrl: '', // New field for media URL
       type: 'single',
       options: [
         { text: '', isCorrect: false },
         { text: '', isCorrect: false },
         { text: '', isCorrect: false }
       ],
-      points: 1,
-      imageUrl: ''
+      points: 1
     };
     setQuestions([...questions, newQuestion]);
   };
@@ -174,13 +175,13 @@ function CreateQuiz({ user }) {
     ));
   };
 
-  // Handle image upload (simulated - in a real app, you would upload to a server)
-  const handleImageUpload = (questionId, file) => {
+  // Handle media upload (simulated - in a real app, you would upload to a server)
+  const handleMediaUpload = (questionId, file, type) => {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        updateQuestion(questionId, 'imageUrl', e.target.result);
-        setSuccess('Image uploaded successfully!');
+        updateQuestion(questionId, 'mediaUrl', e.target.result);
+        setSuccess(`${type.charAt(0).toUpperCase() + type.slice(1)} uploaded successfully!`);
         setTimeout(() => setSuccess(''), 3000);
       };
       reader.readAsDataURL(file);
@@ -218,8 +219,15 @@ function CreateQuiz({ user }) {
     // Validate questions
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      if (!q.question.trim()) {
+      // For text questions, validate question text
+      if (q.questionType === 'text' && !q.question.trim()) {
         setError(`Question ${i + 1}: Please enter the question text`);
+        setLoading(false);
+        return;
+      }
+      // For image/audio questions, validate media
+      if ((q.questionType === 'image' || q.questionType === 'audio') && !q.mediaUrl) {
+        setError(`Question ${i + 1}: Please upload ${q.questionType} file`);
         setLoading(false);
         return;
       }
@@ -251,12 +259,13 @@ function CreateQuiz({ user }) {
         description,
         questions: questions.map(q => ({
           question: q.question,
+          questionType: q.questionType, // Include question type
+          mediaUrl: q.mediaUrl, // Include media URL
           type: q.type,
           options: q.options,
           points: q.points,
           // Apply default per-question time when in per-question mode
-          timeLimit: timingMode === 'per-question' ? totalDuration : null,
-          imageUrl: q.imageUrl || null // Include image URL if present
+          timeLimit: timingMode === 'per-question' ? totalDuration : null
         })),
         timingMode,
         totalDuration: durationInSeconds,
@@ -597,22 +606,90 @@ function CreateQuiz({ user }) {
                 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Question Text
+                    Question Type
                   </label>
-                  <textarea
-                    value={question.question}
-                    onChange={(e) => updateQuestion(question.id, 'question', e.target.value)}
-                    placeholder="Enter your question"
-                    rows="2"
+                  <select
+                    value={question.questionType || 'text'}
+                    onChange={(e) => updateQuestion(question.id, 'questionType', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
+                  >
+                    <option value="text">Text Question</option>
+                    <option value="image">Image Question</option>
+                    <option value="audio">Audio Question</option>
+                  </select>
                 </div>
-                
+
+                {/* Question Input based on type */}
+                {question.questionType === 'text' ? (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Question Text
+                    </label>
+                    <textarea
+                      value={question.question}
+                      onChange={(e) => updateQuestion(question.id, 'question', e.target.value)}
+                      placeholder="Enter your question"
+                      rows="2"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                ) : question.questionType === 'image' ? (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Image Upload
+                    </label>
+                    {question.mediaUrl ? (
+                      <div className="flex flex-col items-start">
+                        <img src={question.mediaUrl} alt="Question" className="max-w-full h-auto rounded-lg border border-gray-200 mb-2" />
+                        <button
+                          type="button"
+                          onClick={() => updateQuestion(question.id, 'mediaUrl', '')}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove Image
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleMediaUpload(question.id, e.target.files[0], 'image')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Audio Upload
+                    </label>
+                    {question.mediaUrl ? (
+                      <div className="flex flex-col items-start">
+                        <audio controls src={question.mediaUrl} className="mb-2 w-full" />
+                        <button
+                          type="button"
+                          onClick={() => updateQuestion(question.id, 'mediaUrl', '')}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove Audio
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        onChange={(e) => handleMediaUpload(question.id, e.target.files[0], 'audio')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Question Type
+                      Answer Type
                     </label>
                     <select
                       value={question.type}
