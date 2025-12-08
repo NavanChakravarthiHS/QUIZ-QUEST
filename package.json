@@ -4,7 +4,7 @@
   "description": "Secure Online Quiz Platform",
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
-    "build": "npm run build --prefix frontend",
+    "build": "cd frontend && npm install && npm run build",
     "start": "node backend/server.js"
   },
   "devDependencies": {
