@@ -13,7 +13,7 @@ export default defineConfig({
       }
     }
   },
-  // For Vercel deployment
+  // For production build
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -22,5 +22,7 @@ export default defineConfig({
         manualChunks: undefined
       }
     }
-  }
+  },
+  // Ensure base path is correct for deployment
+  base: '/'
 })

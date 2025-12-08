@@ -26,7 +26,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quiz-plat
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/question-bank', questionBankRoutes);
@@ -39,4 +39,3 @@ app.get('/api/health', (req, res) => {
 
 // Export the app for Vercel
 module.exports = app;
-module.exports.app = app;
