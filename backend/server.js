@@ -1,7 +1,7 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const { connectToDatabase } = require('./utils/db');
 
 // Load environment variables
 dotenv.config();
@@ -16,14 +16,6 @@ const adminRoutes = require('./routes/admin');
 
 // Import scheduler
 const { startQuizScheduler } = require('./jobs/quizScheduler');
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quiz-platform', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
 
 // Middleware
 app.use(cors());
@@ -47,16 +39,16 @@ if (process.env.NOW_REGION) {
 } else {
   // Running locally, start the server
   const PORT = process.env.PORT || 5004;
-  
+
   // Function to start server with port fallback
   const startServer = (port) => {
     const server = app.listen(port, '0.0.0.0', () => {
       console.log(`Server running on port ${port}`);
-      
+
       // Start the quiz scheduler
       startQuizScheduler();
     });
-    
+
     server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         const nextPort = port + 1;
@@ -71,11 +63,18 @@ if (process.env.NOW_REGION) {
         console.error('Server error:', err);
       }
     });
-    
+
     return server;
   };
-  
-  const server = startServer(PORT);
-  
-  module.exports = server;
+
+  connectToDatabase()
+    .then(() => {
+      console.log('Connected to MongoDB');
+      const server = startServer(PORT);
+      module.exports = server;
+    })
+    .catch((err) => {
+      console.error('MongoDB connection error:', err);
+      process.exit(1);
+    });
 }

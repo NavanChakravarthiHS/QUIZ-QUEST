@@ -1,7 +1,7 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const { connectToDatabase } = require('../utils/db');
 
 // Load environment variables
 dotenv.config();
@@ -14,13 +14,16 @@ const quizRoutes = require('../routes/quiz');
 const questionBankRoutes = require('../routes/questionBank');
 const adminRoutes = require('../routes/admin');
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quiz-platform', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+// Ensure a MongoDB connection before handling any request (important for serverless)
+app.use(async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    return next();
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    return res.status(500).json({ success: false, message: 'Database connection failed' });
+  }
+});
 
 // Middleware
 app.use(cors());
