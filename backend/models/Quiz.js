@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const questionSchema = new mongoose.Schema({
   question: {
     type: String,
-    default: '' // Not required for image/audio questions
+    default: ''
   },
   questionType: {
     type: String,

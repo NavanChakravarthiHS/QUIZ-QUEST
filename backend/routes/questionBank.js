@@ -3,6 +3,10 @@ const router = express.Router();
 const QuestionBank = require('../models/QuestionBank');
 const auth = require('../middleware/auth');
 
+// Increase payload limit for file uploads
+router.use(express.json({ limit: '10mb' }));
+router.use(express.urlencoded({ limit: '10mb', extended: true }));
+
 // Get all subjects with question counts (for dropdown)
 router.get('/subjects', auth, async (req, res) => {
   try {
@@ -125,9 +129,9 @@ router.post('/create', auth, async (req, res) => {
       return res.status(400).json({ message: 'Invalid question type' });
     }
 
-    // For text questions, validate question text
-    if (questionType === 'text' && (!question || !question.trim())) {
-      return res.status(400).json({ message: 'Question text is required for text questions' });
+    // For all question types, validate question text
+    if (!question || !question.trim()) {
+      return res.status(400).json({ message: 'Question text is required' });
     }
 
     // For image/audio questions, validate media URL
@@ -231,14 +235,11 @@ router.put('/:id', auth, async (req, res) => {
     if (subject) question.subject = subject.trim();
     if (questionType) question.questionType = questionType;
     
-    // Update question text or media URL based on question type
-    if (questionType === 'text') {
-      if (questionText) question.question = questionText.trim();
-      question.mediaUrl = '';
-    } else if (questionType === 'image' || questionType === 'audio') {
-      question.question = '';
-      if (mediaUrl !== undefined) question.mediaUrl = mediaUrl;
-    }
+    // Update question text for all question types
+    if (questionText) question.question = questionText.trim();
+    
+    // Update media URL for image/audio questions
+    if (mediaUrl !== undefined) question.mediaUrl = mediaUrl;
     
     if (type) question.type = type;
     if (options) question.options = options;

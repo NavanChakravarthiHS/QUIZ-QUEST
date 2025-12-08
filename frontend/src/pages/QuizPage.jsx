@@ -507,9 +507,7 @@ function QuizPage({ user }) {
                 </div>
                 <div className="ml-4">
                   <h2 className="text-xl font-semibold text-gray-900">
-                    {currentQuestion.questionType === 'text' 
-                      ? currentQuestion.question 
-                      : `${currentQuestion.questionType.charAt(0).toUpperCase() + currentQuestion.questionType.slice(1)} Question`}
+                    {currentQuestion.question || `${currentQuestion.questionType.charAt(0).toUpperCase() + currentQuestion.questionType.slice(1)} Question`}
                   </h2>
                   <div className="mt-2 flex items-center text-sm text-gray-500">
                     <span className="bg-gray-100 px-2 py-1 rounded">{currentQuestion.points} Marks</span>
@@ -536,7 +534,8 @@ function QuizPage({ user }) {
                 </div>
               )}
 
-              {currentQuestion.questionType === 'text' && currentQuestion.question && (
+              {/* Display question text for all question types if available */}
+              {currentQuestion.question && (
                 <div className="mb-6 text-gray-800">
                   {currentQuestion.question}
                 </div>

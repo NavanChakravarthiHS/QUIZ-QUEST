@@ -49,13 +49,17 @@ router.post('/create', auth, async (req, res) => {
       const q = questions[i];
       
       // Validate question type
-      if (!q.questionType || !['text', 'image', 'audio'].includes(q.questionType)) {
-        return res.status(400).json({ message: `Question ${i + 1}: Invalid question type` });
+      if (!q.questionType) {
+        return res.status(400).json({ message: `Question ${i + 1}: Question type is missing. Valid types are: text, image, audio` });
       }
       
-      // For text questions, validate question text
-      if (q.questionType === 'text' && (!q.question || !q.question.trim())) {
-        return res.status(400).json({ message: `Question ${i + 1}: Question text is required for text questions` });
+      if (!['text', 'image', 'audio'].includes(q.questionType)) {
+        return res.status(400).json({ message: `Question ${i + 1}: Invalid question type '${q.questionType}'. Valid types are: text, image, audio` });
+      }
+      
+      // For all question types, validate question text
+      if (!q.question || !q.question.trim()) {
+        return res.status(400).json({ message: `Question ${i + 1}: Question text is required` });
       }
       
       // For image/audio questions, validate media URL
@@ -102,7 +106,7 @@ router.post('/create', auth, async (req, res) => {
       description: description ? description.trim() : '',
       createdBy: req.user._id,
       questions: questions.map(q => ({
-        question: q.questionType === 'text' ? q.question.trim() : '',
+        question: q.question ? q.question.trim() : '',
         questionType: q.questionType,
         mediaUrl: q.mediaUrl || '',
         type: q.type,

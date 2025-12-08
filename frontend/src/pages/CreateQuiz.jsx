@@ -16,14 +16,15 @@ function CreateQuiz({ user }) {
     {
       id: `question-${Date.now()}-${Math.random()}`,
       question: '',
+      questionType: 'text', // Set default question type to text
+      mediaUrl: '', // Field for media URL
       type: 'single',
       options: [
         { text: '', isCorrect: false },
         { text: '', isCorrect: false },
         { text: '', isCorrect: false }
       ],
-      points: 1,
-      imageUrl: ''
+      points: 1
     }
   ]);
   const [loading, setLoading] = useState(false);
@@ -89,10 +90,11 @@ function CreateQuiz({ user }) {
       const formattedQuestions = bankQuestions.map(q => ({
         id: q._id || `question-${Date.now()}-${Math.random()}`,
         question: q.question,
+        questionType: q.questionType || 'text', // Default to 'text' if not specified
+        mediaUrl: q.mediaUrl || q.imageUrl || '', // Support both mediaUrl and imageUrl
         type: q.type,
         options: q.options,
-        points: q.points,
-        imageUrl: q.imageUrl || ''
+        points: q.points
       }));
       
       console.log('Formatted questions:', formattedQuestions);
@@ -219,8 +221,21 @@ function CreateQuiz({ user }) {
     // Validate questions
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      // For text questions, validate question text
-      if (q.questionType === 'text' && !q.question.trim()) {
+      // Validate question type
+      if (!q.questionType) {
+        setError(`Question ${i + 1}: Question type is missing. Please select a question type (Text, Image, or Audio).`);
+        setLoading(false);
+        return;
+      }
+      
+      if (!['text', 'image', 'audio'].includes(q.questionType)) {
+        setError(`Question ${i + 1}: Invalid question type '${q.questionType}'. Valid types are: Text, Image, or Audio.`);
+        setLoading(false);
+        return;
+      }
+      
+      // For all question types, validate question text
+      if (!q.question.trim()) {
         setError(`Question ${i + 1}: Please enter the question text`);
         setLoading(false);
         return;
@@ -658,6 +673,20 @@ function CreateQuiz({ user }) {
                         className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       />
                     )}
+                    
+                    {/* Text input for questions based on the image */}
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Question Text (based on image)
+                      </label>
+                      <textarea
+                        value={question.question}
+                        onChange={(e) => updateQuestion(question.id, 'question', e.target.value)}
+                        placeholder="Enter your question based on the image above"
+                        rows="2"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="mb-4">
@@ -683,6 +712,20 @@ function CreateQuiz({ user }) {
                         className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       />
                     )}
+                    
+                    {/* Text input for questions based on the audio */}
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Question Text (based on audio)
+                      </label>
+                      <textarea
+                        value={question.question}
+                        onChange={(e) => updateQuestion(question.id, 'question', e.target.value)}
+                        placeholder="Enter your question based on the audio above"
+                        rows="2"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
                   </div>
                 )}
 
