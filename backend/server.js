@@ -40,35 +40,42 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Quiz Platform Backend is running' });
 });
 
-const PORT = process.env.PORT || 5004;
-
-// Function to start server with port fallback
-const startServer = (port) => {
-  const server = app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+// Check if running in Vercel environment
+if (process.env.NOW_REGION) {
+  // Running on Vercel, export for serverless
+  module.exports = app;
+} else {
+  // Running locally, start the server
+  const PORT = process.env.PORT || 5004;
+  
+  // Function to start server with port fallback
+  const startServer = (port) => {
+    const server = app.listen(port, '0.0.0.0', () => {
+      console.log(`Server running on port ${port}`);
+      
+      // Start the quiz scheduler
+      startQuizScheduler();
+    });
     
-    // Start the quiz scheduler
-    startQuizScheduler();
-  });
-  
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      const nextPort = port + 1;
-      // Check if the next port is still valid (less than 65536)
-      if (nextPort < 65536) {
-        console.log(`Port ${port} is already in use, trying ${nextPort}...`);
-        startServer(nextPort);
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        const nextPort = port + 1;
+        // Check if the next port is still valid (less than 65536)
+        if (nextPort < 65536) {
+          console.log(`Port ${port} is already in use, trying ${nextPort}...`);
+          startServer(nextPort);
+        } else {
+          console.error('No available ports found');
+        }
       } else {
-        console.error('No available ports found');
+        console.error('Server error:', err);
       }
-    } else {
-      console.error('Server error:', err);
-    }
-  });
+    });
+    
+    return server;
+  };
   
-  return server;
-};
-
-const server = startServer(PORT);
-
-module.exports = server;
+  const server = startServer(PORT);
+  
+  module.exports = server;
+}

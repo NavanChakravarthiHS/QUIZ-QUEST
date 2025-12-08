@@ -12,5 +12,15 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  // For Vercel deployment
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
   }
 })
