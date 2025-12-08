@@ -8,9 +8,22 @@ export default defineConfig({
     port: 3001,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:5004',
+        // Default to backend's standard port when no env override is provided
+        target: process.env.VITE_API_URL || 'http://localhost:5000',
         changeOrigin: true
       }
     }
-  }
+  },
+  // For production build
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  },
+  // Ensure base path is correct for deployment
+  base: '/'
 })
