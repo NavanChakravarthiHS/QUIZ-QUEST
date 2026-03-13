@@ -13,15 +13,16 @@ QuizQuest is a comprehensive online quiz platform designed for educational insti
 7. **Duplicate Prevention**: Each student can attempt a quiz only once
 8. **Detailed Results**: Comprehensive score breakdown with question-wise analysis
 9. **Responsive Design**: Works on all devices
+10. **Cloud Deployment**: Ready for Vercel deployment with serverless architecture
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js (v14 or higher)
-- MongoDB
+- MongoDB (local or MongoDB Atlas for cloud deployment)
 - npm or yarn
 
-### Installation
+### Local Installation
 
 1. **Clone the repository:**
    ```bash
@@ -158,6 +159,80 @@ The platform includes comprehensive error handling and validation:
 - API error handling with user-friendly messages
 - Duplicate attempt prevention
 - Time-based quiz constraints
+
+## ☁️ Deploy on Vercel
+
+### Prerequisites
+- [Vercel account](https://vercel.com)
+- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (free tier)
+- Git repository (GitHub, GitLab, or Bitbucket)
+
+### Exact Deployment Steps
+
+**1. Prepare MongoDB Atlas**
+- Create a cluster at [MongoDB Atlas](https://cloud.mongodb.com)
+- Create a database user with read/write access
+- Get your connection string (e.g. `mongodb+srv://user:pass@cluster.mongodb.net/quiz-platform?retryWrites=true&w=majority`)
+- Network Access → Add IP Address → **Allow access from anywhere** (`0.0.0.0/0`)
+
+**2. Push code to Git**
+```bash
+git add .
+git commit -m "Prepare for Vercel deployment"
+git push origin main
+```
+
+**3. Deploy on Vercel**
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import your Git repository
+3. **Build Settings** (should auto-detect from `vercel.json`):
+   - Framework Preset: **Other**
+   - Build Command: `npm run build`
+   - Output Directory: `frontend/dist`
+   - Install Command: `npm install && npm install --prefix backend`
+4. **Environment Variables** → Add:
+   | Name | Value |
+   |------|-------|
+   | `MONGODB_URI` | Your MongoDB Atlas connection string |
+   | `JWT_SECRET` | Strong random string (32+ chars) |
+   | `NODE_ENV` | `production` |
+5. Click **Deploy**
+
+**4. Verify deployment**
+- Visit your `https://your-project.vercel.app`
+- Test `/api/health` → should return `{"status":"OK"}`
+- Create a teacher account and log in
+- Create a quiz and test student access
+
+### Environment Variables (Required)
+
+| Variable | Description |
+|----------|-------------|
+| `MONGODB_URI` | MongoDB connection string (MongoDB Atlas) |
+| `JWT_SECRET` | Secret for JWT signing (generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
+| `NODE_ENV` | Set to `production` |
+
+### Deploy via CLI (Alternative)
+
+```bash
+npm i -g vercel
+vercel login
+vercel link
+vercel --prod
+```
+
+Add environment variables in Vercel dashboard before deploying, or use `vercel env add`.
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Build fails | Run `npm run build` locally first; ensure Node.js ≥18 |
+| Database connection failed | Check MONGODB_URI and IP whitelist (0.0.0.0/0) |
+| 404 on routes | SPA routing is configured; refresh the page |
+| API returns 500 | Check Vercel function logs in dashboard |
+
+For detailed deployment guide, see [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md)
 
 ## 📈 Future Enhancements
 

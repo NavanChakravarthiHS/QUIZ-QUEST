@@ -40,3 +40,6 @@ coverage/
 *.seed
 *.pid.lock
 
+# Sensitive data - do not commit
+Accessing Keys.txt
+
