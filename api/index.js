@@ -1,8 +1,12 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const path = require('path');
+const express = require('express');
+const fs = require('fs');
+const { execSync } = require('child_process');
 const app = require('../backend/app');
 
-// Load environment variables from root .env
+// Load environment variables
 dotenv.config({ path: '../.env' });
 
 // Validate required env vars in production
@@ -12,6 +16,21 @@ if (process.env.NODE_ENV === 'production') {
   }
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
     throw new Error('JWT_SECRET must be set and at least 32 characters in production');
+  }
+}
+
+// Build frontend if not already built (only once per deployment)
+const frontendDistPath = path.join(__dirname, '..', 'frontend', 'dist');
+if (!fs.existsSync(frontendDistPath)) {
+  console.log('Building frontend...');
+  try {
+    execSync('cd ../frontend && npm install && npm run build', { 
+      stdio: 'inherit',
+      cwd: path.join(__dirname, '..')
+    });
+    console.log('Frontend built successfully');
+  } catch (error) {
+    console.error('Failed to build frontend:', error.message);
   }
 }
 
@@ -51,6 +70,19 @@ app.use(async (req, res, next) => {
     return res
       .status(500)
       .json({ success: false, message: 'Database connection failed' });
+  }
+});
+
+// Serve static files from frontend/dist
+app.use(express.static(frontendDistPath));
+
+// Serve index.html for all non-API routes (for React Router)
+app.get('*', (req, res) => {
+  const indexPath = path.join(frontendDistPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Frontend not built yet. Please wait...');
   }
 });
 
