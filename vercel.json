@@ -36,12 +36,6 @@
   "buildCommand": "cd frontend && npx vite build",
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 10,
-      "memory": 1024
-    }
   }
 }
 
