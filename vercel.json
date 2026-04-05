@@ -22,8 +22,7 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "outputDirectory": "frontend/dist"
+  ]
 }
 
 
