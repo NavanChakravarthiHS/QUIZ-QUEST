@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "framework": null,
   "builds": [
     {
       "src": "frontend/package.json",
@@ -20,25 +21,13 @@
       "dest": "/api/index.js"
     },
     {
-      "src": "/assets/(.*)",
-      "headers": { 
-        "cache-control": "public, max-age=31536000, immutable" 
-      },
-      "continue": true
-    },
-    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
   ],
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install && npm install --prefix backend && cd frontend && npm install",
-  "buildCommand": "cd frontend && npx vite build",
-  "env": {
-    "NODE_ENV": "production",
-    "MONGODB_URI": "@mongodb_uri",
-    "JWT_SECRET": "@jwt_secret"
-  }
+  "buildCommand": "cd frontend && npx vite build"
 }
 
 
