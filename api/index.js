@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const app = require('../backend/app');
 
-dotenv.config();
+// Load environment variables from root .env
+dotenv.config({ path: '../.env' });
 
 // Validate required env vars in production
 if (process.env.NODE_ENV === 'production') {
