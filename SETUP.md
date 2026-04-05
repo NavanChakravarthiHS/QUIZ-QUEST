@@ -189,7 +189,9 @@ quiz-platform/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| MONGODB_URI | MongoDB connection string | mongodb://localhost:27017/quiz-platform |
+| Variable | Description | Example |
+|----------|-------------|---------|
+| MONGODB_URI | MongoDB connection string | `mongodb+srv://user:pass@cluster.mongodb.net/quiz-platform` (production) or `mongodb://localhost:27017/quiz-platform` (local) |
 | JWT_SECRET | Secret key for JWT tokens | your-secret-key |
 | PORT | Server port | 5000 |
 

@@ -30,7 +30,9 @@ npm install
 Create a `.env` file in the backend directory with the following content:
 
 ```
-MONGODB_URI=mongodb://localhost:27017/quiz-platform
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/quiz-platform?retryWrites=true&w=majority
+# OR for local development:
+# MONGODB_URI=mongodb://localhost:27017/quiz-platform
 JWT_SECRET=your-super-secret-jwt-key
 PORT=5000
 ```

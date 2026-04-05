@@ -1,9 +1,13 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const dotenv = require('dotenv');
 const User = require('./models/User');
 
-// MongoDB connection
-const MONGODB_URI = 'mongodb://localhost:27017/quiz-platform';
+// Load environment variables
+dotenv.config();
+
+// MongoDB connection from environment variable
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/quiz-platform';
 
 async function createAdmin() {
   try {
