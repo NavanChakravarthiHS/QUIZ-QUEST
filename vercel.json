@@ -30,8 +30,8 @@
     }
   ],
   "outputDirectory": "frontend/dist",
-  "installCommand": "npm install && npm install --prefix backend && npm install --prefix frontend",
-  "buildCommand": "cd frontend && npm run build",
+  "installCommand": "npm install && npm install --prefix backend && cd frontend && npm install",
+  "buildCommand": "cd frontend && npx vite build",
   "env": {
     "NODE_ENV": "production"
   },
