@@ -43,3 +43,5 @@ coverage/
 # Sensitive data - do not commit
 Accessing Keys.txt
 
+.vercel
+.env*.local
