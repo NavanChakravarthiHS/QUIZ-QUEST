@@ -67,6 +67,8 @@ Add `0.0.0.0/0` to Network Access (Allow from Anywhere)
 
 Push to Git or deploy manually through Vercel dashboard.
 
+For detailed deployment instructions, see [DEPLOY_STEPS.md](DEPLOY_STEPS.md) or [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md).
+
 ## Project Structure
 
 ```
